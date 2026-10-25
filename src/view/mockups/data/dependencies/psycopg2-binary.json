@@ -1,0 +1,27 @@
+{
+  "project": "my-project",
+  "lastCheck": { "at": "2026-10-25T12:40:00+03:00", "error": null },
+  "name": "psycopg2-binary",
+  "current": "2.9.9",
+  "latest": "2.9.10",
+  "status": "failed",
+  "links": {
+    "repo": "https://github.com/psycopg/psycopg2",
+    "pypi": "https://pypi.org/project/psycopg2-binary/"
+  },
+  "reason": null,
+  "recommendation": null,
+  "places": [],
+  "changes": [],
+  "bounds": {
+    "checked": ["Новая версия 2.9.10 найдена на PyPI"],
+    "unchecked": [
+      "Changelog и release notes — источник был недоступен",
+      "Использование `psycopg2` в коде проекта"
+    ]
+  },
+  "failureReason": "Не удалось получить список изменений: GitHub API ответил `403` — превышен лимит запросов.",
+  "history": [
+    { "at": "2026-10-25T12:40:00+03:00", "current": "2.9.9", "latest": "2.9.10", "status": "failed" }
+  ]
+}

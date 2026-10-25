@@ -1,0 +1,26 @@
+{
+  "project": "my-project",
+  "lastCheck": { "at": "2026-10-25T12:40:00+03:00", "error": null },
+  "name": "fastapi",
+  "current": "0.110.0",
+  "latest": "0.115.2",
+  "status": "waiting",
+  "links": {
+    "repo": "https://github.com/fastapi/fastapi",
+    "pypi": "https://pypi.org/project/fastapi/",
+    "releaseNotes": "https://fastapi.tiangolo.com/release-notes/"
+  },
+  "reason": null,
+  "recommendation": null,
+  "places": [],
+  "changes": [],
+  "bounds": {
+    "checked": ["Новая версия 0.115.2 найдена на PyPI"],
+    "unchecked": [
+      "Release notes с 0.110.0 по 0.115.2",
+      "Использование `fastapi` в коде проекта"
+    ]
+  },
+  "failureReason": null,
+  "history": []
+}

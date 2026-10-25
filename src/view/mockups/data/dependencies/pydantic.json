@@ -1,0 +1,83 @@
+{
+  "project": "my-project",
+  "lastCheck": { "at": "2026-10-25T12:40:00+03:00", "error": null },
+  "name": "pydantic",
+  "current": "1.10.13",
+  "latest": "2.9.2",
+  "status": "incompat",
+  "links": {
+    "repo": "https://github.com/pydantic/pydantic",
+    "pypi": "https://pypi.org/project/pydantic/",
+    "changelog": "https://github.com/pydantic/pydantic/blob/main/HISTORY.md",
+    "releaseNotes": "https://github.com/pydantic/pydantic/releases"
+  },
+  "reason": "В 2.0 `BaseSettings` вынесен в отдельный пакет — импорт в `app/settings.py` перестанет работать. Ещё 6 мест используют API, объявленное устаревшим: оно работает с предупреждениями и будет удалено в 3.0.",
+  "recommendation": "до обновления добавить `pydantic-settings` и перенести `app/settings.py`. Остальные места можно переводить постепенно, по руководству по миграции.",
+  "places": [
+    { "file": "app/settings.py", "line": 3, "api": "from pydantic import BaseSettings", "kind": "removed" },
+    { "file": "app/models/invoice.py", "line": 14, "api": "class Config", "kind": "deprecated" },
+    { "file": "app/models/invoice.py", "line": 31, "api": "@validator", "kind": "deprecated" },
+    { "file": "app/models/customer.py", "line": 22, "api": "@validator", "kind": "deprecated" },
+    { "file": "app/api/routes/invoices.py", "line": 58, "api": ".dict()", "kind": "deprecated" },
+    { "file": "app/api/routes/customers.py", "line": 42, "api": ".parse_obj()", "kind": "deprecated" },
+    { "file": "app/services/export.py", "line": null, "api": ".json()", "kind": "deprecated" }
+  ],
+  "changes": [
+    {
+      "text": "`BaseSettings` перенесён в отдельный пакет `pydantic-settings`",
+      "source": { "title": "руководство по миграции", "url": "https://docs.pydantic.dev/latest/migration/" },
+      "usedInProject": 1,
+      "assumption": null
+    },
+    {
+      "text": "Методы `.dict()`, `.json()` и `.parse_obj()` заменены на `model_dump()`, `model_dump_json()` и `model_validate()`; старые объявлены устаревшими",
+      "source": { "title": "руководство по миграции", "url": "https://docs.pydantic.dev/latest/migration/" },
+      "usedInProject": 3,
+      "assumption": null
+    },
+    {
+      "text": "Декоратор `@validator` заменён на `@field_validator`",
+      "source": { "title": "руководство по миграции", "url": "https://docs.pydantic.dev/latest/migration/" },
+      "usedInProject": 2,
+      "assumption": null
+    },
+    {
+      "text": "Вложенный `class Config` заменён на `model_config = ConfigDict(...)`",
+      "source": { "title": "руководство по миграции", "url": "https://docs.pydantic.dev/latest/migration/" },
+      "usedInProject": 1,
+      "assumption": null
+    },
+    {
+      "text": "Атрибут `__fields__` заменён на `model_fields`",
+      "source": { "title": "руководство по миграции", "url": "https://docs.pydantic.dev/latest/migration/" },
+      "usedInProject": 0,
+      "assumption": null
+    },
+    {
+      "text": "Числа больше не приводятся к строке в полях типа `str`",
+      "source": { "title": "таблица преобразований типов", "url": "https://docs.pydantic.dev/latest/concepts/conversion_table/" },
+      "usedInProject": 0,
+      "assumption": "Может затронуть модели, которые принимают данные из внешних API: если поле `str` получит число, валидация упадёт. Статически это не проверить."
+    }
+  ],
+  "bounds": {
+    "checked": [
+      "Python-код в `app/` и `tests/`",
+      "Changelog (`HISTORY.md`) с 1.10.13 по 2.9.2",
+      "Release notes 2.0 – 2.9.2 на GitHub",
+      "Руководство по миграции 1.x → 2.x"
+    ],
+    "unchecked": [
+      "Динамические обращения: `getattr`, имена полей в строках",
+      "`fastapi` тоже зависит от pydantic — его совместимость с 2.9.2 не оценивалась",
+      "Поведение во время выполнения: тесты проекта не запускались"
+    ]
+  },
+  "failureReason": null,
+  "history": [
+    { "at": "2026-10-25T12:40:00+03:00", "current": "1.10.13", "latest": "2.9.2", "status": "incompat" },
+    { "at": "2026-10-18T12:40:00+03:00", "current": "1.10.13", "latest": "2.9.2", "status": "incompat" },
+    { "at": "2026-10-11T12:40:00+03:00", "current": "1.10.13", "latest": "2.9.1", "status": "failed" },
+    { "at": "2026-10-04T12:40:00+03:00", "current": "1.10.13", "latest": "2.9.1", "status": "incompat" }
+  ]
+}

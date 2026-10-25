@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Макеты — LovoGit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="../app/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar__inner">
+    <div class="topbar__project">
+      <span class="logo">LovoGit</span>
+      <h1 class="project-name">Макеты на демо-данных</h1>
+    </div>
+  </div>
+</header>
+
+<!-- Макеты — прод-страницы из app/ с данными из data/ вместо API. -->
+<main class="container">
+  <div class="report">
+    <section class="panel" aria-labelledby="registry-h">
+      <div class="panel__head"><h2 id="registry-h" class="panel__title">Реестр</h2></div>
+      <ul class="places">
+        <li class="place"><a class="place__path" href="registry.html">registry.html</a><span class="hint">все зависимости и сводка критичности</span></li>
+        <li class="place"><a class="place__path" href="registry-monitoring-error.html">registry-monitoring-error.html</a><span class="hint">последняя проверка завершилась ошибкой</span></li>
+        <li class="place"><a class="place__path" href="registry-empty.html">registry-empty.html</a><span class="hint">проект ещё не проверялся</span></li>
+        <li class="place"><a class="place__path" href="registry-error.html">registry-error.html</a><span class="hint">ошибка загрузки данных</span></li>
+      </ul>
+    </section>
+    <section class="panel" aria-labelledby="dependency-h">
+      <div class="panel__head"><h2 id="dependency-h" class="panel__title">Зависимость</h2></div>
+      <ul class="places">
+        <li class="place"><a class="place__path" href="dependency.html?name=pydantic">pydantic</a><span class="status status--incompat">Вероятна несовместимость</span></li>
+        <li class="place"><a class="place__path" href="dependency.html?name=requests">requests</a><span class="status status--low">Низкий риск</span></li>
+        <li class="place"><a class="place__path" href="dependency.html?name=psycopg2-binary">psycopg2-binary</a><span class="status status--failed">Анализ не удался</span></li>
+        <li class="place"><a class="place__path" href="dependency.html?name=fastapi">fastapi</a><span class="status status--waiting">Ждёт анализа</span></li>
+        <li class="place"><a class="place__path" href="dependency.html?name=sqlalchemy">sqlalchemy</a><span class="hint">отчёта в демо-данных нет — экран «не найдена»</span></li>
+      </ul>
+    </section>
+    <p class="hint">Вид для телефона — те же страницы на ширине до 640 px. Демо-данные в <code>data/</code> — заодно черновик формата API.</p>
+  </div>
+</main>
+
+</body>
+</html>

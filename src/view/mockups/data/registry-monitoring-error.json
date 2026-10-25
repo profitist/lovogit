@@ -1,0 +1,174 @@
+{
+  "project": "my-project",
+  "lastCheck": {
+    "at": "2026-10-25T12:40:00+03:00",
+    "error": "PyPI не ответил за 30 секунд"
+  },
+  "dependencies": [
+    {
+      "name": "pydantic",
+      "current": "1.10.13",
+      "latest": "2.9.2",
+      "status": "incompat",
+      "places": 7,
+      "links": {
+        "repo": "https://github.com/pydantic/pydantic",
+        "pypi": "https://pypi.org/project/pydantic/",
+        "changelog": "https://github.com/pydantic/pydantic/blob/main/HISTORY.md"
+      }
+    },
+    {
+      "name": "sqlalchemy",
+      "current": "1.4.52",
+      "latest": "2.0.36",
+      "status": "incompat",
+      "places": 12,
+      "links": {
+        "repo": "https://github.com/sqlalchemy/sqlalchemy",
+        "pypi": "https://pypi.org/project/SQLAlchemy/",
+        "changelog": "https://docs.sqlalchemy.org/en/20/changelog/"
+      }
+    },
+    {
+      "name": "httpx",
+      "current": "0.25.2",
+      "latest": "0.27.2",
+      "status": "review",
+      "places": 2,
+      "links": {
+        "repo": "https://github.com/encode/httpx",
+        "pypi": "https://pypi.org/project/httpx/",
+        "changelog": "https://github.com/encode/httpx/blob/master/CHANGELOG.md"
+      }
+    },
+    {
+      "name": "celery",
+      "current": "5.3.6",
+      "latest": "5.4.0",
+      "status": "review",
+      "places": 1,
+      "links": {
+        "repo": "https://github.com/celery/celery",
+        "pypi": "https://pypi.org/project/celery/",
+        "changelog": "https://docs.celeryq.dev/en/stable/changelog.html"
+      }
+    },
+    {
+      "name": "numpy",
+      "current": "1.26.4",
+      "latest": "2.1.2",
+      "status": "review",
+      "places": 3,
+      "links": {
+        "repo": "https://github.com/numpy/numpy",
+        "pypi": "https://pypi.org/project/numpy/",
+        "changelog": "https://numpy.org/doc/stable/release.html"
+      }
+    },
+    {
+      "name": "psycopg2-binary",
+      "current": "2.9.9",
+      "latest": "2.9.10",
+      "status": "failed",
+      "places": null,
+      "links": {
+        "repo": "https://github.com/psycopg/psycopg2",
+        "pypi": "https://pypi.org/project/psycopg2-binary/"
+      }
+    },
+    {
+      "name": "fastapi",
+      "current": "0.110.0",
+      "latest": "0.115.2",
+      "status": "waiting",
+      "places": null,
+      "links": {
+        "repo": "https://github.com/fastapi/fastapi",
+        "pypi": "https://pypi.org/project/fastapi/",
+        "changelog": "https://fastapi.tiangolo.com/release-notes/"
+      }
+    },
+    {
+      "name": "requests",
+      "current": "2.31.0",
+      "latest": "2.32.3",
+      "status": "low",
+      "places": 0,
+      "links": {
+        "repo": "https://github.com/psf/requests",
+        "pypi": "https://pypi.org/project/requests/",
+        "changelog": "https://github.com/psf/requests/blob/main/HISTORY.md"
+      }
+    },
+    {
+      "name": "python-dotenv",
+      "current": "1.0.0",
+      "latest": "1.0.1",
+      "status": "low",
+      "places": 0,
+      "links": {
+        "repo": "https://github.com/theskumar/python-dotenv",
+        "pypi": "https://pypi.org/project/python-dotenv/",
+        "changelog": "https://github.com/theskumar/python-dotenv/blob/main/CHANGELOG.md"
+      }
+    },
+    {
+      "name": "rich",
+      "current": "13.7.0",
+      "latest": "13.9.2",
+      "status": "low",
+      "places": 0,
+      "links": {
+        "repo": "https://github.com/Textualize/rich",
+        "pypi": "https://pypi.org/project/rich/",
+        "changelog": "https://github.com/Textualize/rich/blob/master/CHANGELOG.md"
+      }
+    },
+    {
+      "name": "click",
+      "current": "8.1.7",
+      "latest": null,
+      "status": "current",
+      "places": null,
+      "links": {
+        "repo": "https://github.com/pallets/click",
+        "pypi": "https://pypi.org/project/click/",
+        "changelog": "https://click.palletsprojects.com/en/stable/changes/"
+      }
+    },
+    {
+      "name": "pyyaml",
+      "current": "6.0.2",
+      "latest": null,
+      "status": "current",
+      "places": null,
+      "links": {
+        "repo": "https://github.com/yaml/pyyaml",
+        "pypi": "https://pypi.org/project/PyYAML/"
+      }
+    },
+    {
+      "name": "structlog",
+      "current": "24.4.0",
+      "latest": null,
+      "status": "current",
+      "places": null,
+      "links": {
+        "repo": "https://github.com/hynek/structlog",
+        "pypi": "https://pypi.org/project/structlog/",
+        "changelog": "https://github.com/hynek/structlog/blob/main/CHANGELOG.md"
+      }
+    },
+    {
+      "name": "tenacity",
+      "current": "9.0.0",
+      "latest": null,
+      "status": "current",
+      "places": null,
+      "links": {
+        "repo": "https://github.com/jd/tenacity",
+        "pypi": "https://pypi.org/project/tenacity/"
+      }
+    }
+  ]
+}

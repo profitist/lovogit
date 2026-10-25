@@ -1,0 +1,39 @@
+{
+  "project": "my-project",
+  "lastCheck": { "at": "2026-10-25T12:40:00+03:00", "error": null },
+  "name": "requests",
+  "current": "2.31.0",
+  "latest": "2.32.3",
+  "status": "low",
+  "links": {
+    "repo": "https://github.com/psf/requests",
+    "pypi": "https://pypi.org/project/requests/",
+    "changelog": "https://github.com/psf/requests/blob/main/HISTORY.md",
+    "releaseNotes": "https://github.com/psf/requests/releases"
+  },
+  "reason": "Значимое изменение между 2.31.0 и 2.32.3 касается `HTTPAdapter`, а проект использует только `requests.get` и `requests.post`.",
+  "recommendation": "обновление выглядит низкорисковым, но тесты проекта стоит прогнать: поведение во время выполнения не проверялось.",
+  "places": [],
+  "changes": [
+    {
+      "text": "`HTTPAdapter.get_connection` объявлен устаревшим, вместо него — `get_connection_with_tls_context`",
+      "source": { "title": "HISTORY.md", "url": "https://github.com/psf/requests/blob/main/HISTORY.md" },
+      "usedInProject": 0,
+      "assumption": null
+    }
+  ],
+  "bounds": {
+    "checked": [
+      "Python-код в `app/` и `tests/`",
+      "Changelog (`HISTORY.md`) с 2.31.0 по 2.32.3"
+    ],
+    "unchecked": [
+      "Подклассы `HTTPAdapter` в других зависимостях проекта",
+      "Поведение во время выполнения: тесты проекта не запускались"
+    ]
+  },
+  "failureReason": null,
+  "history": [
+    { "at": "2026-10-25T12:40:00+03:00", "current": "2.31.0", "latest": "2.32.3", "status": "low" }
+  ]
+}
