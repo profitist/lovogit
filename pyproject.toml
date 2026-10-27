@@ -4,4 +4,10 @@ version = "0.1.0"
 description = "Интеллектуальный мониторинг зависимостей Python-проектов"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "aiogram>=3.31.0",
+    "alembic>=1.20.1",
+    "pydantic-settings>=2.16.1",
+    "ruff>=0.17.3",
+    "sqlalchemy>=2.1.6",
+]
