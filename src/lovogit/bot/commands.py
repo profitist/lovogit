@@ -1,11 +1,8 @@
-import dataclasses
-
 from aiogram import Router
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
-from lovogit.bot.message import message_builder
-from lovogit.bot.message import BaseMessageStructure
 
+from lovogit.bot.message import BaseMessageStructure, message_builder
 
 router = Router()
 
@@ -36,20 +33,6 @@ async def add_repo(message: Message):
         footer = "/help — список команд"
 
     await message.answer(text=message_builder.build(AddRepoMessageStructure()))
-
-
-@router.message(Command("status"))
-async def status(message: Message):
-    class StatusMessageStructure(BaseMessageStructure):
-        title = "Статус проекта"
-        content = (
-            "Здесь будет время и результат последней проверки "
-            "и число зависимостей в каждом статусе.\n\n"
-            "Пока заглушка: проверки ещё не реализованы."
-        )
-        footer = "/help — список команд"
-
-    await message.answer(text=message_builder.build(StatusMessageStructure()))
 
 
 @router.message(Command("attention"))

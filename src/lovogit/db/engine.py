@@ -1,17 +1,33 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-
-engine = create_async_engine("sqlite+aiosqlite:///db.sqlite3")
-async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
+from lovogit.cfg.database import DatabaseSettings
 
 
 class Base(DeclarativeBase):
     pass
 
 
+def make_engine(url: str, **options):
+    """Создать движок, включив проверку внешних ключей SQLite."""
+    result = create_async_engine(url, **options)
+    if result.dialect.name == "sqlite":
+
+        @event.listens_for(result.sync_engine, "connect")
+        def enable_foreign_keys(connection, _):
+            cursor = connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+    return result
+
+
+engine = make_engine(DatabaseSettings().DATABASE_URL)
+async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+
 async def get_session():
-    """Get session."""
+    """Открыть отдельную сессию на операцию."""
     async with async_session_factory() as session:
         yield session
-    

@@ -1,8 +1,9 @@
 from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from .access import BotAccessSettings
 
 
-class _Settings(BaseSettings):
+class _Settings(BotAccessSettings):
     """Настройки приложения"""
 
     # Telegram bot
@@ -14,8 +15,6 @@ class _Settings(BaseSettings):
     LLM_BASE_URL: str
     MODEL_CHEAP: str
     MODEL_STRONG: str
-
-    model_config = SettingsConfigDict(env_file=".env")
 
 
 settings = _Settings()
