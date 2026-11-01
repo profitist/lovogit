@@ -1,3 +1,3 @@
-from .base import BaseRepoProvider, RepoRequestDTO
+from .dto import RepoRefDTO, ResolvedRepoDTO, SourceSnapshotDTO
 
-__all__ = ['BaseRepoProvider', 'RepoRequestDTO']
+__all__ = ["RepoRefDTO", "ResolvedRepoDTO", "SourceSnapshotDTO"]

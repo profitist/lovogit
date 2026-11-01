@@ -186,3 +186,65 @@ node --test src/view/tests/logic.test.js
 ```
 
 Для разработки используйте обычную сборку Python 3.14. В локальной free-threaded 3.14.4 воспроизводилось зависание завершения Alembic; проверки этого изменения выполнялись в отдельном обычном Python 3.14, без изменения рабочего окружения.
+
+## 11. GitHub-исходники
+
+GitHub-провайдер получает исходники независимо от Telegram, LLM и БД. Настройки
+`GitHubSettings` читают окружение и `.env`: обязательный непустой `GITHUB_TOKEN`
+(для выбранных репозиториев требуется чтение Contents), необязательный
+`GITHUB_WORKSPACE_DIR` (по умолчанию системный temp). Публичность репозитория
+не задаётся: используется один токен экземпляра.
+
+Ограничения, все положительные: `GITHUB_CONNECT_TIMEOUT=10`,
+`GITHUB_READ_TIMEOUT=30`, `GITHUB_DEADLINE=120` (секунды),
+`GITHUB_MAX_ARCHIVE_BYTES=104857600`, `GITHUB_MAX_EXTRACTED_BYTES=524288000`,
+`GITHUB_MAX_ENTRIES=50000`. Каталог workspace должен существовать и быть доступен
+для записи. Настройки GitHub не загружаются при старте бота автоматически.
+
+Адрес — только HTTPS URL корня github.com, допускаются `.git` и завершающий `/`.
+Default branch берётся из GitHub, затем фиксируется SHA: обновление ветки во время
+скачивания не меняет ревизию снимка. GitHub ID в результате отличается от ID
+проекта в локальной БД.
+
+Ошибки провайдера имеют безопасное `user_message`, `stage` и `status_code`.
+`str(error)` содержит сообщение со стадией и HTTP-кодом для диагностики:
+`InvalidRepoURL`, `AuthenticationError`, `RepoNotFound` (не найден или недоступен),
+`RevisionUnavailable`, `RateLimited` (с `retry_at` UTC, если известно),
+`SourceUnavailable`, `InvalidSourceResponse`, `InvalidArchive`,
+`SourceStorageError`. Повторы не выполняются автоматически. Токен, тела HTTP-ошибок
+и временные URL скачивания не включаются в сообщения ошибок. Redirect разрешён
+только по HTTPS между api.github.com и codeload.github.com; токен передаётся
+только api.github.com. Сырые журналы httpx/httpcore подавляются в контексте запросов провайдера,
+чтобы временные URL и HTTP-заголовки не попадали в логи. Остальной HTTP-трафик
+приложения продолжает логироваться с его обычными настройками.
+
+Пример получения исходников (вызывать внутри асинхронной функции):
+
+```python
+import httpx
+
+from lovogit.app.providers.github import GitHubProvider
+from lovogit.app.services.repo import RepoService
+from lovogit.cfg.github import GitHubSettings
+
+settings = GitHubSettings()
+async with httpx.AsyncClient() as client:
+    source = RepoService(GitHubProvider(client, settings))
+    async with source.open_source("https://github.com/team/project") as snapshot:
+        print(snapshot.repo.commit_sha)
+        # Читать файлы можно только внутри этого контекста.
+        manifests = list(snapshot.root.rglob("pyproject.toml"))
+```
+
+`root` содержит файлы непосредственно от корня проекта. Каждый вызов владеет
+отдельным временным каталогом: кэша и совместного использования каталогов нет.
+Потребители только читают файлы; OS sandbox или read-only mount не создаётся.
+Нормальный выход, ошибка и отмена освобождают каталог; распаковка в рабочем потоке
+завершается до удаления. После аварийного завершения процесса в temp могут
+остаться файлы, автоматический сборщик остатков пока отсутствует.
+
+Архив не содержит историю Git. Submodules и LFS-объекты отдельно не скачиваются:
+нельзя считать их содержимое полностью проанализированным. Исходники не
+исполняются, зависимости не устанавливаются. `RepoService` не пишет в БД,
+не создаёт зависимости и не запускает мониторинг. Регистрация проектов и разбор
+манифестов будут подключаться отдельно.
