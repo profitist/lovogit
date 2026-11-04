@@ -35,20 +35,6 @@ async def add_repo(message: Message):
     await message.answer(text=message_builder.build(AddRepoMessageStructure()))
 
 
-@router.message(Command("attention"))
-async def attention(message: Message):
-    class AttentionMessageStructure(BaseMessageStructure):
-        title = "Требует внимания"
-        content = (
-            "Здесь будут зависимости со статусами «Вероятна несовместимость», "
-            "«Требует проверки» и «Анализ не удался».\n\n"
-            "Пока заглушка: проверки ещё не реализованы."
-        )
-        footer = "/help — список команд"
-
-    await message.answer(text=message_builder.build(AttentionMessageStructure()))
-
-
 @router.message(Command("dep"))
 async def dep(message: Message):
     class DepMessageStructure(BaseMessageStructure):
@@ -84,7 +70,8 @@ async def help_(message: Message):
         title = "Команды"
         content = (
             "/status — сводка по проекту\n"
-            "/attention — что требует внимания\n"
+            "/attention — сохранённые оценки, требующие внимания, по всем проектам; "
+            "без запуска проверки\n"
             "/dep <имя> — отчёт по зависимости\n"
             "/check — запустить проверку вне расписания\n"
             "/help — список команд"
