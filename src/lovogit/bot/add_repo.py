@@ -1,6 +1,6 @@
 import logging
 
-from aiogram import BaseMiddleware, Router
+from aiogram import Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
@@ -11,21 +11,17 @@ from lovogit.app.services.registration import (
     RegistrationUnavailable,
     RepositoryRegistrationService,
 )
+from lovogit.bot.access_middleware import ChatAccessMiddleware
 from lovogit.bot.status_format import format_time
 
 logger = logging.getLogger(__name__)
 
 
-class RegistrationMiddleware(BaseMiddleware):
+class RegistrationMiddleware(ChatAccessMiddleware):
     def __init__(self, allowed_chat_ids, service: RepositoryRegistrationService):
-        self._allowed_chat_ids = frozenset(allowed_chat_ids)
-        self._service = service
-
-    async def __call__(self, handler, event: Message, data):
-        if event.chat.id not in self._allowed_chat_ids:
-            await event.answer("Нет доступа", parse_mode=None)
-            return None
-        return await handler(event, {**data, "registration_service": self._service})
+        super().__init__(
+            allowed_chat_ids, handler_data={"registration_service": service}
+        )
 
 
 async def add_repo(

@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from lovogit.app.services.monitoring_queries import latest_run_id
 from lovogit.app.services.status import CheckSummaryDTO, as_utc
 from lovogit.db import DependencyResult as DependencyResultModel
 from lovogit.db import DependencyStatus, RepoModel, RunState
@@ -41,25 +42,6 @@ class AttentionService:
     async def get_overview(self) -> list[ProjectAttentionDTO]:
         latest = aliased(MonitoringRunModel)
         snapshot = aliased(MonitoringRunModel)
-        latest_id = (
-            select(MonitoringRunModel.id)
-            .where(MonitoringRunModel.repo_id == RepoModel.id)
-            .order_by(MonitoringRunModel.started_at.desc(), MonitoringRunModel.id.desc())
-            .limit(1)
-            .correlate(RepoModel)
-            .scalar_subquery()
-        )
-        snapshot_id = (
-            select(MonitoringRunModel.id)
-            .where(
-                MonitoringRunModel.repo_id == RepoModel.id,
-                MonitoringRunModel.state == RunState.SUCCEEDED,
-            )
-            .order_by(MonitoringRunModel.started_at.desc(), MonitoringRunModel.id.desc())
-            .limit(1)
-            .correlate(RepoModel)
-            .scalar_subquery()
-        )
         priority = {
             DependencyStatus.INCOMPAT: 0,
             DependencyStatus.REVIEW: 1,
@@ -82,8 +64,8 @@ class AttentionService:
                 DependencyResultModel.status,
             )
             .select_from(RepoModel)
-            .outerjoin(latest, latest.id == latest_id)
-            .outerjoin(snapshot, snapshot.id == snapshot_id)
+            .outerjoin(latest, latest.id == latest_run_id())
+            .outerjoin(snapshot, snapshot.id == latest_run_id(state=RunState.SUCCEEDED))
             .outerjoin(
                 DependencyResultModel,
                 (DependencyResultModel.run_id == snapshot.id)
