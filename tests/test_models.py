@@ -72,3 +72,22 @@ class ModelTests(unittest.IsolatedAsyncioTestCase):
                         for _ in range(2)
                     ]
                 )
+
+    async def test_github_identity_is_unique_even_for_deleted_repos(self):
+        async with self.sessions.begin() as session:
+            session.add(
+                RepoModel(
+                    name="old",
+                    repo_url="url",
+                    github_id=123,
+                    deleted_at=datetime.now(UTC),
+                )
+            )
+            session.add(RepoModel(name="other-legacy", repo_url="url"))
+        with self.assertRaises(IntegrityError):
+            async with self.sessions.begin() as session:
+                session.add(RepoModel(name="new", repo_url="url", github_id=123))
+        async with self.sessions() as session:
+            repos = (await session.scalars(select(RepoModel))).all()
+            self.assertEqual(len(repos), 3)
+            self.assertEqual(sum(repo.github_id is None for repo in repos), 2)

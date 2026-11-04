@@ -111,3 +111,48 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(
                 db.execute("SELECT name FROM repos").fetchone()[0], "existing"
             )
+
+    def test_repository_identity_keeps_all_history_across_upgrade_and_downgrade(self):
+        self.migrate("upgrade", "0002_monitoring_state")
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("INSERT INTO repos (id,name,repo_url) VALUES (7,'legacy','url')")
+            db.execute(
+                "INSERT INTO dependencies (id,repo_id,name,current_version) VALUES (9,7,'requests','1')"
+            )
+            db.execute(
+                "INSERT INTO monitoring_runs (id,repo_id,started_at,finished_at,state) VALUES (11,7,'2026-01-01','2026-01-01','succeeded')"
+            )
+            db.execute(
+                "INSERT INTO dependency_results (id,run_id,name,current_version,status) VALUES (13,11,'requests','1','review')"
+            )
+        self.migrate("upgrade", "head")
+        with closing(sqlite3.connect(self.path)) as db, db:
+            self.assertEqual(
+                db.execute("SELECT id,github_id FROM repos").fetchall(), [(7, None)]
+            )
+            db.execute(
+                "UPDATE repos SET github_id=123,deleted_at='2026-01-02' WHERE id=7"
+            )
+            with self.assertRaises(sqlite3.IntegrityError):
+                db.execute(
+                    "INSERT INTO repos (name,repo_url,github_id) VALUES ('duplicate','url',123)"
+                )
+        self.migrate("downgrade", "0002_monitoring_state")
+        with closing(sqlite3.connect(self.path)) as db, db:
+            self.assertEqual(
+                db.execute("SELECT id,name FROM repos").fetchall(), [(7, "legacy")]
+            )
+            self.assertEqual(
+                db.execute("SELECT id,repo_id FROM dependencies").fetchall(), [(9, 7)]
+            )
+            self.assertEqual(
+                db.execute("SELECT id,repo_id FROM monitoring_runs").fetchall(),
+                [(11, 7)],
+            )
+            self.assertEqual(
+                db.execute("SELECT id,run_id FROM dependency_results").fetchall(),
+                [(13, 11)],
+            )
+            self.assertNotIn(
+                "github_id", [r[1] for r in db.execute("PRAGMA table_info(repos)")]
+            )

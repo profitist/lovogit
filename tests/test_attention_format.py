@@ -62,7 +62,7 @@ class AttentionFormatTests(unittest.TestCase):
         self.assertLess(text.index("backend"), text.index("worker"))
         self.assertLess(text.index("worker"), text.index("empty"))
         self.assertIn("Проекты не настроены", format_attention([])[0])
-        self.assertIn("при развёртывании", format_attention([])[0])
+        self.assertIn("/add_repo <github-url>", format_attention([])[0])
 
     def test_running_and_failed_with_and_without_snapshot(self):
         for state in (RunState.RUNNING, RunState.FAILED):

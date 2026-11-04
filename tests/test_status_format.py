@@ -29,7 +29,7 @@ def project(state=None, counts=None, name="backend", error=None):
 class StatusFormatTests(unittest.TestCase):
     def test_no_projects(self):
         self.assertIn("Проекты не настроены", format_overview([])[0])
-        self.assertIn("при развёртывании", format_overview([])[0])
+        self.assertIn("/add_repo <github-url>", format_overview([])[0])
 
     def test_no_checks_and_no_fake_zeroes(self):
         text = project_block(project())

@@ -22,19 +22,6 @@ async def start(message: Message):
     await message.answer(text=message_builder.build(StartMessageStructure()))
 
 
-@router.message(Command("add_repo"))
-async def add_repo(message: Message):
-    class AddRepoMessageStructure(BaseMessageStructure):
-        title = "Подключение проекта"
-        content = (
-            "Подключение проекта через бота пока не поддерживается: "
-            "проект задаётся конфигурацией при развёртывании LovoGit."
-        )
-        footer = "/help — список команд"
-
-    await message.answer(text=message_builder.build(AddRepoMessageStructure()))
-
-
 @router.message(Command("dep"))
 async def dep(message: Message):
     class DepMessageStructure(BaseMessageStructure):
@@ -69,6 +56,7 @@ async def help_(message: Message):
     class HelpMessageStructure(BaseMessageStructure):
         title = "Команды"
         content = (
+            "/add_repo <github-url> — добавить репозиторий для всех разрешённых чатов\n"
             "/status — сводка по проекту\n"
             "/attention — сохранённые оценки, требующие внимания, по всем проектам; "
             "без запуска проверки\n"

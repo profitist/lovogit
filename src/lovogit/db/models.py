@@ -20,8 +20,10 @@ from .engine import Base
 
 class Repo(Base):
     __tablename__ = "repos"
+    __table_args__ = (Index("uq_repo_github_id", "github_id", unique=True),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    github_id: Mapped[int | None] = mapped_column(Integer)
     name: Mapped[str] = mapped_column(String(255))
 
     repo_url: Mapped[str] = mapped_column(String(255))
