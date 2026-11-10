@@ -145,9 +145,12 @@ from lovogit.db.engine import async_session_factory
 
 state = MonitoringStateService(async_session_factory)
 run_id = await state.start_run(project_id)
-await state.succeed_run(run_id, [
-    DependencyResultDTO("requests", "2.31.0", "2.32.0", DependencyStatus.REVIEW),
-])
+await state.succeed_run(
+    run_id,
+    [
+        DependencyResultDTO("requests", "2.31.0", "2.32.0", DependencyStatus.REVIEW),
+    ],
+)
 # Для сбоя другого, ещё не завершённого запуска:
 # await state.fail_run(other_run_id, "Не удалось получить сведения о релизах")
 ```
