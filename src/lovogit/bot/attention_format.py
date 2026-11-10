@@ -38,9 +38,7 @@ def _project_block(project: ProjectAttentionDTO) -> str:
 
 def format_attention(projects: list[ProjectAttentionDTO]) -> list[str]:
     if not projects:
-        return [
-            "Проекты не настроены. Добавьте репозиторий: /add_repo <github-url>"
-        ]
+        return ["Проекты не настроены. Добавьте репозиторий: /add_repo <github-url>"]
     text = "LovoGit — требует внимания\n\n" + "\n\n".join(map(_project_block, projects))
     if any(project.snapshot_id is not None for project in projects):
         text += (

@@ -78,9 +78,7 @@ def split_messages(text: str, limit: int = 4096) -> list[str]:
 
 def format_overview(projects: list[ProjectStatusDTO]) -> list[str]:
     if not projects:
-        return [
-            "Проекты не настроены. Добавьте репозиторий: /add_repo <github-url>"
-        ]
+        return ["Проекты не настроены. Добавьте репозиторий: /add_repo <github-url>"]
     return split_messages(
         "LovoGit — статус проектов\n\n" + "\n\n".join(map(project_block, projects))
     )
