@@ -1,0 +1,30 @@
+name: sandbox
+on:
+  pull_request:
+    paths:
+      - 'src/lovogit/sandbox/**'
+      - 'src/lovogit/cfg/sandbox.py'
+      - 'src/lovogit/agent/comparer/sandbox.py'
+      - 'src/lovogit/agent/comparer/state.py'
+      - 'docker/sandbox/**'
+      - 'tests/test_sandbox*'
+      - '.github/workflows/sandbox.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: python -m pip install pydantic-settings pytest
+      - run: docker build -t lovogit-sandbox:local docker/sandbox
+      - run: docker build -f docker/sandbox/Dockerfile.test -t lovogit-sandbox:test docker/sandbox
+      - run: python -m pytest -o markers='docker: isolated Docker integration tests' tests/test_sandbox.py tests/test_sandbox_docker.py
+        env:
+          PYTHONPATH: src
+          SANDBOX_DOCKER_TESTS: '1'

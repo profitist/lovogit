@@ -1,0 +1,5 @@
+FROM lovogit-sandbox:local
+USER root
+RUN pip download --no-cache-dir --no-deps --dest /opt/wheels idna==3.10 \
+    && pip download --no-cache-dir --no-deps --dest /opt/wheels idna==3.11
+USER 1000:1000
