@@ -99,3 +99,91 @@ Documentation и другие. Поиск и чтение changelog — отде
 ```sh
 PYTHONPATH=src:tests .venv/bin/python -m unittest test_pypi_provider
 ```
+
+## Сбор материалов двух версий
+
+`UpdateSourceService(provider).collect(UpdateSourceRequest(...))` получает
+метаданные конкретных current/target релизов через переданный PyPiProvider.
+Запрос требует непустые package/current_version/target_version и не выбирает
+последнюю версию. Одинаковая запрошенная версия читается один раз, но в результате
+всегда присутствуют обе роли. Возвращённая PyPI версия и запрошенная строка
+сохраняются отдельно: например, `1` и `1.0`.
+
+```python
+from lovogit.app.services.update_source_dto import UpdateSourceRequest
+from lovogit.app.services.update_sources import UpdateSourceService
+
+async def collect_update_materials(provider):
+    request = UpdateSourceRequest("requests", "2.31.0", "2.32.3")
+    return await UpdateSourceService(provider).collect(request)
+```
+
+`provider` — существующий PyPiProvider; клиент создаётся и закрывается вызывающим
+кодом, как в примере выше. Сам сервис не загружает настройки бота или LLM.
+Результат содержит request, current и target. В каждой записи metadata хранит
+исходный PackageInfoDTO, origin — source_kind=`pypi_metadata`, роль, имя,
+возвращённую и запрошенную версии; description_available указывает наличие
+непробельного описания. Текст и content type сохраняются без преобразования.
+Описание не объявляется release notes, а совпадение README не означает
+отсутствия изменений библиотеки.
+
+Отсутствие материалов — допустимый результат. Ошибки получения любого релиза
+передаются как исходные исключения провайдера с контекстом версии и rate limit;
+частичный результат не возвращается, автоматических повторов нет. Cancellation
+также передаётся вызывающему.
+
+### Опубликованные ссылки
+
+`current.links` и `target.links` сохраняют исходные label/URL, поле происхождения
+(`project_urls` или `home_page`), origin релиза, category и exclusion_reason.
+Между версиями записи не объединяются. В частности, одинаковая ссылка у двух
+версий остаётся двумя записями с разными ролями.
+
+Категория определяется только по названию ссылки: lowercase с удалением
+обычных пробелов, дефисов и подчёркиваний:
+
+| Названия после нормализации | Категория |
+|---|---|
+| changelog, changes, history | changelog |
+| releasenotes | release_notes |
+| source, sourcecode, repository, code | source |
+| documentation, docs | documentation |
+| homepage, home | homepage |
+| остальные | other |
+
+`home_page` становится отдельной homepage-ссылкой, если значение непустое.
+Неизвестные названия не распознаются по адресу: например, `Community` с URL
+GitHub Releases остаётся `other`. Словарь намеренно конечный; README для поиска
+ссылок не разбирается.
+
+`has_change_links` доступен для current, target и всего результата (OR двух
+релизов). Он учитывает только changelog/release_notes с абсолютным HTTP(S) URL,
+непустым хостом, допустимым port и без credentials. Пробелы, управляющие символы
+и обратные слеши в URL исключаются. Неподходящая запись сохраняется с причиной
+`empty_url`, `invalid_url`, `unsupported_scheme` или `credentials_not_allowed`.
+Query и fragment подходящего адреса сохраняются.
+
+Пригодность здесь означает только соответствие формату: страницы не посещаются,
+их доступность, содержимое и официальность не проверяются. Источник указан
+автором пакета в PyPI. Если есть только source/docs, сбор успешен, но
+`has_change_links` равен false; это не утверждение об отсутствии изменений.
+
+### Различия требований и отзыв релиза
+
+`requirements_diff` содержит current_requires_python, target_requires_python,
+requires_python_changed и отсортированные added_requires_dist/removed_requires_dist.
+Ограничения Python сравниваются как исходные значения, включая None; различное
+написание семантически одинаковых ограничений считается различием метаданных.
+Требования зависимостей сравниваются как множества точных строк: перестановка
+и повторы не дают изменений. Исходный порядок и повторы доступны в metadata.
+Markers и extras не вычисляются, транзитивные зависимости не разрешаются.
+
+Для каждой роли `requires_dist_dynamic` отмечает наличие `requires_dist` в
+metadata.dynamic. Все значения dynamic сохраняются. PyPiProvider уже преобразует
+null requires_dist в пустой tuple: сервис не восстанавливает это различие и
+не считает пустой список доказательством отсутствия зависимостей окружения.
+
+Отзыв целевого релиза доступен как `target.metadata.yanked` и
+`target.metadata.yanked_reason`. Причина может быть пустой или None, не отменяя
+сам факт отзыва. Сервис не выбирает другую версию и не присваивает статус
+совместимости ни на основании отзыва, ни на основании различий требований.
