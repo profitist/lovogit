@@ -100,6 +100,87 @@ Documentation и другие. Поиск и чтение changelog — отде
 PYTHONPATH=src:tests .venv/bin/python -m unittest test_pypi_provider
 ```
 
+## Анализ загруженных материалов
+
+`UpdateSourceAnalysisService(extractor, settings).analyze(fetched)` принимает
+готовый `UpdateSourceFetchResultDTO` и сохраняет его в результате. Статусы:
+`no_materials`, `failed`, `partial`, `completed`. Документы имеют стабильные ID
+по позиции входного результата; ошибки загрузки и происхождение сохраняются.
+При отсутствии непустого fetched-текста модель не вызывается. Версии и
+идентичность пакета проверяются до анализа; интервал — `(current, target]`.
+
+Независимые настройки `SourceAnalysisSettings` читают переменные окружения:
+`SOURCE_ANALYSIS_MAX_DOCUMENTS` (10), `SOURCE_ANALYSIS_MAX_DOCUMENT_CHARS` (60000),
+`SOURCE_ANALYSIS_MAX_TOTAL_CHARS` (180000), `SOURCE_ANALYSIS_MAX_RESPONSE_CHARS`
+(60000), `SOURCE_ANALYSIS_CALL_TIMEOUT` (30 секунд), `SOURCE_ANALYSIS_DEADLINE`
+(120 секунд). Все значения положительные. Импорт не требует BOT_TOKEN или LLM
+credentials; модель передаётся явно.
+
+`UpdateChangeExtractor` принимает готовую LangChain chat model. Создающий её код
+выбирает provider/model/credentials и задаёт конечный output-token limit;
+локальная проверка длины ответа не ограничивает расход токенов провайдера.
+Клиент модели принадлежит вызывающему и анализатором не закрывается.
+
+Например, для текста `1.1 remove old` валидная запись модели выглядит так:
+
+```json
+{"category":"api","description":"remove old","symbol":"old","release_version":"1.1","evidence":[{"source_id":"source-0","quote":"remove old"}],"version_evidence":{"source_id":"source-0","quote":"1.1"}}
+```
+
+Сервис проверяет точное вхождение цитат и сохраняет их позиции и исходные links.
+Указание `release_version: null` и `version_evidence: null` сохраняет такое
+утверждение в `unscoped_changes` с `unknown_version`. Неподтверждённый символ,
+неизвестный источник и отсутствующая цитата дают rejected; известная версия вне
+интервала даёт outside_interval. Противоречащие записи не объединяются.
+Цитата подтверждает опору на материал, но не правильность интерпретации.
+Покрытие интервала всегда `undetermined`: даже completed означает обработку
+переданных документов, а не полноту истории или совместимость.
+
+Адаптер ожидает JSON `{ "changes": [...], "limitations": [...] }`, максимум
+100 записей и 20 строк ограничений. Неизвестные поля отвергаются. Ошибки
+`invalid_response`, `refused`, `model_error`, `response_limit`, `timeout`
+отражаются на уровне документа и не скрывают результаты других документов.
+Невалидная отдельная запись попадает в `rejected` с индексом и причиной.
+
+```python
+from lovogit.agent.update_sources.extractor import UpdateChangeExtractor
+from lovogit.app.services.update_source_analysis import UpdateSourceAnalysisService
+from lovogit.cfg.source_analysis import SourceAnalysisSettings
+
+
+async def analyze_update_materials(fetched, model):
+    settings = SourceAnalysisSettings()
+    extractor = UpdateChangeExtractor(model, settings)
+    return await UpdateSourceAnalysisService(extractor, settings).analyze(fetched)
+```
+
+Полный вызов с готовыми provider, loader и моделью:
+
+```python
+from lovogit.agent.update_sources.extractor import UpdateChangeExtractor
+from lovogit.app.services.update_source_analysis import UpdateSourceAnalysisService
+from lovogit.app.services.update_source_dto import UpdateSourceRequest
+from lovogit.app.services.update_source_fetching import UpdateSourceFetchService
+from lovogit.app.services.update_sources import UpdateSourceService
+from lovogit.cfg.source_analysis import SourceAnalysisSettings
+
+
+async def collect_fetch_analyze(provider, loader, model):
+    sources = await UpdateSourceService(provider).collect(
+        UpdateSourceRequest("example-pkg", "1.0", "2.0")
+    )
+    fetched = await UpdateSourceFetchService(loader).fetch(sources)
+    settings = SourceAnalysisSettings()
+    return await UpdateSourceAnalysisService(
+        UpdateChangeExtractor(model, settings), settings
+    ).analyze(fetched)
+```
+
+Fetch закрывает loader, анализ не закрывает модель. Документы передаются целиком:
+превышение лимитов даёт пропуск, а не усечённый материал. Повторы и поиск других
+источников не выполняются. Качество извлечения реальной моделью требует отдельной
+оценки; проверки с fake model проверяют контракт и обработку результатов.
+
 ## Сбор материалов двух версий
 
 Загрузка опубликованных ссылок — отдельный этап `UpdateSourceFetchService.fetch`:
