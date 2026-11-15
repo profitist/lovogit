@@ -102,6 +102,70 @@ PYTHONPATH=src:tests .venv/bin/python -m unittest test_pypi_provider
 
 ## Сбор материалов двух версий
 
+Загрузка опубликованных ссылок — отдельный этап `UpdateSourceFetchService.fetch`:
+сам `collect` не обращается к страницам. Результат сохраняет исходный `sources`,
+признак `has_candidates` и записи `results`. Каждая запись содержит исходные
+`links` с ролями и label, `status` (`fetched`, `skipped`, `failed`), `reason`,
+исходный и конечный URL, цепочку редиректов, доступные HTTP status и Retry-After,
+content type, кодировку и текст. Текст доступен только при `fetched`.
+
+Например, для Documentation и относительной ссылки Changelog результат содержит
+две записи `skipped` с причинами `not_change_link` и `invalid_url`, а
+`has_candidates` равен false. При совпадении адресов двух релизов без fragment
+обе исходные ссылки остаются в одной записи результата.
+
+Настройки загрузки независимы от настроек бота и LLM и задаются через переменные
+окружения: `SOURCE_FETCH_MAX_SOURCES` (10), `SOURCE_FETCH_MAX_REDIRECTS` (5,
+допускается 0), `SOURCE_FETCH_CONNECT_TIMEOUT` (5 с),
+`SOURCE_FETCH_READ_TIMEOUT` (10 с), `SOURCE_FETCH_SOURCE_DEADLINE` (20 с),
+`SOURCE_FETCH_DEADLINE` (60 с), `SOURCE_FETCH_MAX_RESPONSE_BYTES` (2097152 байт).
+Все остальные значения должны быть положительными.
+
+Загрузчик принимает только HTTP и HTTPS на стандартных портах, без credentials.
+Localhost, внутренние, служебные и смешанные публичные/внутренние DNS-ответы
+отклоняются. Соединение устанавливается с проверенным IP, исходное имя остаётся
+в Host и TLS. Каждый редирект проверяется отдельно; переход с HTTPS на HTTP
+запрещён. Запросы анонимны: cookies и авторизация не отправляются, proxy из
+окружения не используется. Эти ограничения также действуют для ссылок из PyPI.
+
+Принимается только HTTP 200 с `text/plain`, `text/markdown` или `text/html`.
+Тело декодируется строго по charset из Content-Type либо как UTF-8; сжатые
+ответы отклоняются. HTML сохраняется как недоверенный исходный текст, без
+выполнения скриптов и загрузки вложенных ресурсов. Содержимое может относиться
+к нескольким релизам или быть навигацией страницы.
+
+Причины ошибок включают `blocked_destination`, `invalid_url`,
+`invalid_redirect`, `redirect_limit`, `http_error`, `transport_error`,
+`timeout`, `size_limit`, `unsupported_content_type`,
+`unsupported_content_encoding`, `unsupported_encoding`, `decode_error` и
+`empty_content`. Пропуски по лимитам обозначаются `source_limit` и
+`deadline_exceeded`. Ошибка или отсутствие ссылки не означает отсутствие
+изменений и не является оценкой совместимости.
+
+Пример объединяет оба независимых этапа. `fetch` закрывает загрузчик после
+вызова; для следующего вызова создайте новый экземпляр.
+
+```python
+from lovogit.app.providers.source_document import SourceDocumentLoader
+from lovogit.app.services.update_source_dto import UpdateSourceRequest
+from lovogit.app.services.update_source_fetching import UpdateSourceFetchService
+from lovogit.app.services.update_sources import UpdateSourceService
+from lovogit.cfg.source_fetch import SourceFetchSettings
+
+
+async def fetch_update_materials(provider, loader=None):
+    sources = await UpdateSourceService(provider).collect(
+        UpdateSourceRequest("example-pkg", "1.0", "2.0")
+    )
+    settings = SourceFetchSettings()
+    loader = loader or SourceDocumentLoader(settings)
+    return await UpdateSourceFetchService(loader, settings).fetch(sources)
+```
+
+Результат содержит опубликованный материал и его происхождение; он не является
+доказательством совместимости и не подтверждает, что текст относится к конкретной
+версии.
+
 `UpdateSourceService(provider).collect(UpdateSourceRequest(...))` получает
 метаданные конкретных current/target релизов через переданный PyPiProvider.
 Запрос требует непустые package/current_version/target_version и не выбирает
