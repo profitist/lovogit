@@ -18,6 +18,9 @@ dist/
 .coverage
 htmlcov/
 
+# Локальные результаты ручных прогонов
+/artifacts/
+
 # Локальные базы данных
 *.db
 *.sqlite3
