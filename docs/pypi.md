@@ -18,7 +18,7 @@
 
 ```python
 import httpx
-from lovogit.app.providers.pypi import PyPiProvider
+from lovogit.app.providers.pypi.client import PyPiProvider
 from lovogit.cfg.pypi import PyPiSettings
 
 
@@ -238,7 +238,7 @@ Localhost, внутренние, служебные и смешанные пуб
 вызова; для следующего вызова создайте новый экземпляр.
 
 ```python
-from lovogit.app.providers.source_document import SourceDocumentLoader
+from lovogit.app.providers.source_documents.loader import SourceDocumentLoader
 from lovogit.app.update_sources.dto import UpdateSourceRequest
 from lovogit.app.update_sources.fetching import fetch_sources
 from lovogit.app.update_sources.collection import collect_sources

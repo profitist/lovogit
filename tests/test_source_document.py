@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 import httpcore
 import httpx
 
-from lovogit.app.providers.source_document import SourceDocumentLoader
-from lovogit.app.providers.source_document_transport import (
+from lovogit.app.providers.source_documents.loader import SourceDocumentLoader
+from lovogit.app.providers.source_documents.transport import (
     CheckedNetworkBackend,
     SourceDocumentTransport,
 )

@@ -10,7 +10,8 @@ from helpers import DatabaseCase
 from test_registration_service import RESOLVED, URL
 from test_status_middleware import message
 
-from lovogit.app.providers.errors import (
+from lovogit.app.providers.github.client import GitHubProvider
+from lovogit.app.providers.github.errors import (
     AuthenticationError,
     InvalidRepoURL,
     RateLimited,
@@ -18,7 +19,6 @@ from lovogit.app.providers.errors import (
     RevisionUnavailable,
     SourceUnavailable,
 )
-from lovogit.app.providers.github import GitHubProvider
 from lovogit.app.services.registration import (
     RegisteredRepositoryDTO,
     RegistrationConflict,

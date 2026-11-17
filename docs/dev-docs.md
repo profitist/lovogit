@@ -227,7 +227,7 @@ Default branch берётся из GitHub, затем фиксируется SHA
 ```python
 import httpx
 
-from lovogit.app.providers.github import GitHubProvider
+from lovogit.app.providers.github.client import GitHubProvider
 from lovogit.app.services.repo import RepoService
 from lovogit.cfg.github import GitHubSettings
 

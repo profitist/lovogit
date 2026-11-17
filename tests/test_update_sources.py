@@ -4,9 +4,9 @@ from dataclasses import replace
 from functools import partial
 from unittest.mock import call, create_autospec
 
-from lovogit.app.providers.pypi import PyPiProvider
-from lovogit.app.providers.pypi_dto import PackageInfoDTO
-from lovogit.app.providers.pypi_errors import (
+from lovogit.app.providers.pypi.client import PyPiProvider
+from lovogit.app.providers.pypi.dto import PackageInfoDTO
+from lovogit.app.providers.pypi.errors import (
     InvalidPyPiResponse,
     PackageNotFound,
     PyPiRateLimited,
@@ -422,7 +422,7 @@ class UpdateSourceIntegrationTests(unittest.IsolatedAsyncioTestCase):
         from pathlib import Path
 
         source = str(Path(__file__).resolve().parents[1] / "src")
-        script = "import asyncio\nimport sys\nimport httpx\nfrom lovogit.app.providers.pypi import PyPiProvider\nfrom lovogit.app.update_sources.dto import UpdateSourceRequest\nfrom lovogit.app.update_sources.collection import collect_sources\nfrom lovogit.cfg.pypi import PyPiSettings\n\nasync def main():\n\n    def handler(request):\n        return httpx.Response(200, json={'info': {'name': 'example', 'version': '1'}})\n    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:\n        result = await collect_sources(UpdateSourceRequest('example', '1', '1'), provider=PyPiProvider(client, PyPiSettings(_env_file=None)))\n        assert result.current.origin.role == 'current'\n        assert result.target.origin.role == 'target'\n    forbidden = ('lovogit.db', 'lovogit.bot', 'lovogit.agent', 'lovogit.sandbox', 'lovogit.cfg.settings', 'langchain', 'langgraph')\n    assert not any((name == prefix or name.startswith(prefix + '.') for name in sys.modules for prefix in forbidden))\nasyncio.run(main())\n"
+        script = "import asyncio\nimport sys\nimport httpx\nfrom lovogit.app.providers.pypi.client import PyPiProvider\nfrom lovogit.app.update_sources.dto import UpdateSourceRequest\nfrom lovogit.app.update_sources.collection import collect_sources\nfrom lovogit.cfg.pypi import PyPiSettings\n\nasync def main():\n\n    def handler(request):\n        return httpx.Response(200, json={'info': {'name': 'example', 'version': '1'}})\n    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:\n        result = await collect_sources(UpdateSourceRequest('example', '1', '1'), provider=PyPiProvider(client, PyPiSettings(_env_file=None)))\n        assert result.current.origin.role == 'current'\n        assert result.target.origin.role == 'target'\n    forbidden = ('lovogit.db', 'lovogit.bot', 'lovogit.agent', 'lovogit.sandbox', 'lovogit.cfg.settings', 'langchain', 'langgraph')\n    assert not any((name == prefix or name.startswith(prefix + '.') for name in sys.modules for prefix in forbidden))\nasyncio.run(main())\n"
         process = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",

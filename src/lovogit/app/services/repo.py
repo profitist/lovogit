@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 
-from lovogit.app.providers.github import GitHubProvider
+from lovogit.app.providers.github.client import GitHubProvider
 
 
 class RepoService:

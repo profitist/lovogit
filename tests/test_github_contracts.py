@@ -4,8 +4,8 @@ import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 
-from lovogit.app.providers import ResolvedRepoDTO, SourceSnapshotDTO
-from lovogit.app.providers.errors import SourceUnavailable
+from lovogit.app.providers.github.dto import ResolvedRepoDTO, SourceSnapshotDTO
+from lovogit.app.providers.github.errors import SourceUnavailable
 
 
 class ContractTests(unittest.TestCase):
@@ -24,7 +24,7 @@ class ContractTests(unittest.TestCase):
                 sys.executable,
                 "-c",
                 (
-                    "import lovogit.app.providers; import sys; "
+                    "import lovogit.app.providers.github.dto; import sys; "
                     'assert "lovogit.cfg.settings" not in sys.modules'
                 ),
             ],

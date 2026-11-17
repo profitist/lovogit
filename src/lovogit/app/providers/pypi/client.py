@@ -5,18 +5,18 @@ from urllib.parse import quote
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from lovogit.app.providers.pypi_dto import (
+from lovogit.app.providers.pypi.dto import (
     PackageFileDTO,
     PackageIndexDTO,
     PackageInfoDTO,
 )
-from lovogit.app.providers.pypi_errors import (
+from lovogit.app.providers.pypi.errors import (
     InvalidPyPiResponse,
     PackageNotFound,
     PyPiRateLimited,
     PyPiUnavailable,
 )
-from lovogit.app.providers.pypi_schemas import (
+from lovogit.app.providers.pypi.schemas import (
     PackageIndexApiSchema,
     PackageResponseApiSchema,
 )

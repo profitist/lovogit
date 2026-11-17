@@ -6,8 +6,9 @@ from helpers import DatabaseCase
 from sqlalchemy import event, select
 from sqlalchemy.exc import OperationalError
 
-from lovogit.app.providers.dto import ResolvedRepoDTO
-from lovogit.app.providers.errors import (
+from lovogit.app.providers.github.client import GitHubProvider
+from lovogit.app.providers.github.dto import ResolvedRepoDTO
+from lovogit.app.providers.github.errors import (
     AuthenticationError,
     InvalidRepoURL,
     InvalidSourceResponse,
@@ -16,7 +17,6 @@ from lovogit.app.providers.errors import (
     RevisionUnavailable,
     SourceUnavailable,
 )
-from lovogit.app.providers.github import GitHubProvider
 from lovogit.app.services.monitoring import DependencyResultDTO, MonitoringStateService
 from lovogit.app.services.registration import (
     RegistrationConflict,

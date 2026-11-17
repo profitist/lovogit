@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, patch
 import httpcore
 import httpx
 
-from lovogit.app.providers.source_document import _valid_url
-from lovogit.app.providers.source_document_transport import (
+from lovogit.app.providers.source_documents.loader import _valid_url
+from lovogit.app.providers.source_documents.transport import (
     BlockedDestination,
     CheckedNetworkBackend,
     SourceDocumentTransport,

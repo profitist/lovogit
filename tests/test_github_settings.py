@@ -2,8 +2,8 @@ import unittest
 
 from pydantic import ValidationError
 
-from lovogit.app.providers.errors import InvalidRepoURL
-from lovogit.app.providers.urls import parse_github_url
+from lovogit.app.providers.github.errors import InvalidRepoURL
+from lovogit.app.providers.github.urls import parse_github_url
 from lovogit.cfg.github import GitHubSettings
 
 

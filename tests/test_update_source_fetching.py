@@ -9,9 +9,9 @@ from test_pypi_provider import metadata
 from test_source_document import Body
 from test_update_sources import release
 
-from lovogit.app.providers.pypi import PyPiProvider
-from lovogit.app.providers.source_document import SourceDocumentLoader
-from lovogit.app.providers.source_document_transport import (
+from lovogit.app.providers.pypi.client import PyPiProvider
+from lovogit.app.providers.source_documents.loader import SourceDocumentLoader
+from lovogit.app.providers.source_documents.transport import (
     CheckedNetworkBackend,
     SourceDocumentTransport,
 )
@@ -70,7 +70,7 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_documented_example_with_fixture(self):
         doc = Path("docs/pypi.md").read_text()
         start = doc.index(
-            "```python\nfrom lovogit.app.providers.source_document import SourceDocumentLoader"
+            "```python\nfrom lovogit.app.providers.source_documents.loader import SourceDocumentLoader"
         ) + len("```python\n")
         code = doc[start : doc.index("```", start)]
         namespace = {}

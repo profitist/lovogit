@@ -14,8 +14,8 @@ from test_source_document import Body
 from test_update_sources import release
 
 from lovogit.agent.update_sources.extractor import UpdateChangeExtractor
-from lovogit.app.providers.pypi import PyPiProvider
-from lovogit.app.providers.source_document import SourceDocumentLoader
+from lovogit.app.providers.pypi.client import PyPiProvider
+from lovogit.app.providers.source_documents.loader import SourceDocumentLoader
 from lovogit.app.update_sources.analysis import analyze_sources
 from lovogit.app.update_sources.collection import collect_sources
 from lovogit.app.update_sources.dto import (

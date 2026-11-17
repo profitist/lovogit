@@ -2,8 +2,8 @@ import re
 import unicodedata
 from urllib.parse import urlsplit
 
-from lovogit.app.providers.pypi import PyPiProvider
-from lovogit.app.providers.pypi_dto import PackageInfoDTO
+from lovogit.app.providers.pypi.client import PyPiProvider
+from lovogit.app.providers.pypi.dto import PackageInfoDTO
 from lovogit.app.update_sources.dto import (
     LinkCategory,
     ReleaseSourcesDTO,

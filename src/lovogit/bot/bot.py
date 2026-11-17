@@ -4,7 +4,7 @@ from contextlib import AsyncExitStack
 import httpx
 from aiogram import Bot, Dispatcher
 
-from lovogit.app.providers.github import GitHubProvider
+from lovogit.app.providers.github.client import GitHubProvider
 from lovogit.app.services.registration import RepositoryRegistrationService
 from lovogit.bot.add_repo import create_registration_router
 from lovogit.bot.attention import create_attention_router

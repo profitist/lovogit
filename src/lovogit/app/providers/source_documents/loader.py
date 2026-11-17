@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 import httpcore
 import httpx
 
-from lovogit.app.providers.source_document_transport import (
+from lovogit.app.providers.source_documents.transport import (
     BlockedDestination,
     SourceDocumentTransport,
 )

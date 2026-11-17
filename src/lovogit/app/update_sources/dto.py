@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from lovogit.app.providers.pypi_dto import PackageInfoDTO
+from lovogit.app.providers.pypi.dto import PackageInfoDTO
 
 LinkCategory = Literal[
     "changelog", "release_notes", "source", "documentation", "homepage", "other"

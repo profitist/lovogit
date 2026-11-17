@@ -6,8 +6,8 @@ from unittest.mock import patch
 import httpx
 from pydantic import ValidationError
 
-from lovogit.app.providers.pypi import PyPiProvider
-from lovogit.app.providers.pypi_errors import (
+from lovogit.app.providers.pypi.client import PyPiProvider
+from lovogit.app.providers.pypi.errors import (
     InvalidPyPiResponse,
     PackageNotFound,
     PyPiRateLimited,
@@ -326,7 +326,9 @@ class PyPiSettingsTests(unittest.TestCase):
             self.assertEqual(
                 PyPiSettings(_env_file=None, PYPY_READ_TIMEOUT=7).PYPI_READ_TIMEOUT, 7
             )
-            importlib.reload(importlib.import_module("lovogit.app.providers.pypi"))
+            importlib.reload(
+                importlib.import_module("lovogit.app.providers.pypi.client")
+            )
 
     def test_invalid_configuration(self):
         for url in [

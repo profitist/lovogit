@@ -5,10 +5,10 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from lovogit.app.providers.dto import ResolvedRepoDTO
-from lovogit.app.providers.errors import InvalidRepoURL
-from lovogit.app.providers.github import GitHubProvider
-from lovogit.app.providers.urls import parse_github_url
+from lovogit.app.providers.github.client import GitHubProvider
+from lovogit.app.providers.github.dto import ResolvedRepoDTO
+from lovogit.app.providers.github.errors import InvalidRepoURL
+from lovogit.app.providers.github.urls import parse_github_url
 from lovogit.db import RepoModel
 
 

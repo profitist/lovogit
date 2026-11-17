@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from test_status_middleware import message
 
-from lovogit.app.providers.github import GitHubProvider
+from lovogit.app.providers.github.client import GitHubProvider
 from lovogit.app.services.attention import AttentionService
 from lovogit.app.services.monitoring import DependencyResultDTO, MonitoringStateService
 from lovogit.app.services.registration import RepositoryRegistrationService

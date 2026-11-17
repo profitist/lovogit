@@ -4,7 +4,7 @@ from aiogram import Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
-from lovogit.app.providers.errors import RateLimited, SourceError
+from lovogit.app.providers.github.errors import RateLimited, SourceError
 from lovogit.app.services.registration import (
     RegistrationConflict,
     RegistrationOutcome,

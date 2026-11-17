@@ -13,9 +13,10 @@ from zipfile import ZipFile, ZipInfo
 
 import httpx
 
-from lovogit.app.providers import ResolvedRepoDTO
-from lovogit.app.providers.archive import extract_archive
-from lovogit.app.providers.errors import (
+from lovogit.app.providers.github.archive import extract_archive
+from lovogit.app.providers.github.client import GitHubProvider
+from lovogit.app.providers.github.dto import ResolvedRepoDTO
+from lovogit.app.providers.github.errors import (
     AuthenticationError,
     InvalidArchive,
     InvalidRepoURL,
@@ -26,7 +27,6 @@ from lovogit.app.providers.errors import (
     SourceStorageError,
     SourceUnavailable,
 )
-from lovogit.app.providers.github import GitHubProvider
 from lovogit.app.services.repo import RepoService
 from lovogit.cfg.github import GitHubSettings
 
@@ -261,7 +261,7 @@ class ProviderTests(unittest.IsolatedAsyncioTestCase):
             async with self._provider.snapshot(REPO):
                 self.fail("Cancelled snapshot")
 
-        with patch("lovogit.app.providers.github.extract_archive", extraction):
+        with patch("lovogit.app.providers.github.client.extract_archive", extraction):
             task = asyncio.create_task(use_snapshot())
             await asyncio.to_thread(started.wait, 2)
             self.assertTrue(started.is_set())
