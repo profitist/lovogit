@@ -18,16 +18,16 @@
 
 ```python
 import httpx
-
 from lovogit.app.providers.pypi import PyPiProvider
 from lovogit.cfg.pypi import PyPiSettings
+
 
 async def inspect_package():
     async with httpx.AsyncClient() as client:
         provider = PyPiProvider(client, PyPiSettings())
         index = await provider.get_package("requests")
         release = await provider.get_package_info("requests", "2.32.3")
-        return index, release
+        return (index, release)
 ```
 
 Индекс возвращает все объявленные версии в порядке сервера: они не сортируются
@@ -102,7 +102,18 @@ PYTHONPATH=src:tests .venv/bin/python -m unittest test_pypi_provider
 
 ## Анализ загруженных материалов
 
-`UpdateSourceAnalysisService(extractor, settings).analyze(fetched)` принимает
+Конвейер находится в пакете `lovogit.app.update_sources`. Это функции с явно
+переданными зависимостями:
+
+- `collection.collect_sources(request, provider)` — метаданные пары релизов.
+- `fetching.fetch_sources(sources, loader, settings=None)` — загрузка документов.
+- `analysis.analyze_sources(fetched, extractor, settings=None)` — обработка и сбор результата анализа.
+
+Общие структуры данных находятся в `dto.py`, проверка идентичности релизов,
+цитат и применимости утверждений — в `validation.py`. Прежние классы
+сервисов и их модули из `app.services` удалены; примеры ниже используют новый API.
+
+`analyze_sources(fetched, extractor, settings)` принимает
 готовый `UpdateSourceFetchResultDTO` и сохраняет его в результате. Статусы:
 `no_materials`, `failed`, `partial`, `completed`. Документы имеют стабильные ID
 по позиции входного результата; ошибки загрузки и происхождение сохраняются.
@@ -144,36 +155,36 @@ credentials; модель передаётся явно.
 
 ```python
 from lovogit.agent.update_sources.extractor import UpdateChangeExtractor
-from lovogit.app.services.update_source_analysis import UpdateSourceAnalysisService
+from lovogit.app.update_sources.analysis import analyze_sources
 from lovogit.cfg.source_analysis import SourceAnalysisSettings
 
 
 async def analyze_update_materials(fetched, model):
     settings = SourceAnalysisSettings()
     extractor = UpdateChangeExtractor(model, settings)
-    return await UpdateSourceAnalysisService(extractor, settings).analyze(fetched)
+    return await analyze_sources(fetched, extractor=extractor, settings=settings)
 ```
 
 Полный вызов с готовыми provider, loader и моделью:
 
 ```python
 from lovogit.agent.update_sources.extractor import UpdateChangeExtractor
-from lovogit.app.services.update_source_analysis import UpdateSourceAnalysisService
-from lovogit.app.services.update_source_dto import UpdateSourceRequest
-from lovogit.app.services.update_source_fetching import UpdateSourceFetchService
-from lovogit.app.services.update_sources import UpdateSourceService
+from lovogit.app.update_sources.analysis import analyze_sources
+from lovogit.app.update_sources.dto import UpdateSourceRequest
+from lovogit.app.update_sources.fetching import fetch_sources
+from lovogit.app.update_sources.collection import collect_sources
 from lovogit.cfg.source_analysis import SourceAnalysisSettings
 
 
 async def collect_fetch_analyze(provider, loader, model):
-    sources = await UpdateSourceService(provider).collect(
-        UpdateSourceRequest("example-pkg", "1.0", "2.0")
+    sources = await collect_sources(
+        UpdateSourceRequest("example-pkg", "1.0", "2.0"), provider=provider
     )
-    fetched = await UpdateSourceFetchService(loader).fetch(sources)
+    fetched = await fetch_sources(sources, loader=loader)
     settings = SourceAnalysisSettings()
-    return await UpdateSourceAnalysisService(
-        UpdateChangeExtractor(model, settings), settings
-    ).analyze(fetched)
+    return await analyze_sources(
+        fetched, extractor=UpdateChangeExtractor(model, settings), settings=settings
+    )
 ```
 
 Fetch закрывает loader, анализ не закрывает модель. Документы передаются целиком:
@@ -183,7 +194,7 @@ Fetch закрывает loader, анализ не закрывает модел
 
 ## Сбор материалов двух версий
 
-Загрузка опубликованных ссылок — отдельный этап `UpdateSourceFetchService.fetch`:
+Загрузка опубликованных ссылок — отдельный этап `fetch_sources`:
 сам `collect` не обращается к страницам. Результат сохраняет исходный `sources`,
 признак `has_candidates` и записи `results`. Каждая запись содержит исходные
 `links` с ролями и label, `status` (`fetched`, `skipped`, `failed`), `reason`,
@@ -228,26 +239,26 @@ Localhost, внутренние, служебные и смешанные пуб
 
 ```python
 from lovogit.app.providers.source_document import SourceDocumentLoader
-from lovogit.app.services.update_source_dto import UpdateSourceRequest
-from lovogit.app.services.update_source_fetching import UpdateSourceFetchService
-from lovogit.app.services.update_sources import UpdateSourceService
+from lovogit.app.update_sources.dto import UpdateSourceRequest
+from lovogit.app.update_sources.fetching import fetch_sources
+from lovogit.app.update_sources.collection import collect_sources
 from lovogit.cfg.source_fetch import SourceFetchSettings
 
 
 async def fetch_update_materials(provider, loader=None):
-    sources = await UpdateSourceService(provider).collect(
-        UpdateSourceRequest("example-pkg", "1.0", "2.0")
+    sources = await collect_sources(
+        UpdateSourceRequest("example-pkg", "1.0", "2.0"), provider=provider
     )
     settings = SourceFetchSettings()
     loader = loader or SourceDocumentLoader(settings)
-    return await UpdateSourceFetchService(loader, settings).fetch(sources)
+    return await fetch_sources(sources, loader=loader, settings=settings)
 ```
 
 Результат содержит опубликованный материал и его происхождение; он не является
 доказательством совместимости и не подтверждает, что текст относится к конкретной
 версии.
 
-`UpdateSourceService(provider).collect(UpdateSourceRequest(...))` получает
+`collect_sources(UpdateSourceRequest(...), provider)` получает
 метаданные конкретных current/target релизов через переданный PyPiProvider.
 Запрос требует непустые package/current_version/target_version и не выбирает
 последнюю версию. Одинаковая запрошенная версия читается один раз, но в результате
@@ -255,12 +266,13 @@ async def fetch_update_materials(provider, loader=None):
 сохраняются отдельно: например, `1` и `1.0`.
 
 ```python
-from lovogit.app.services.update_source_dto import UpdateSourceRequest
-from lovogit.app.services.update_sources import UpdateSourceService
+from lovogit.app.update_sources.dto import UpdateSourceRequest
+from lovogit.app.update_sources.collection import collect_sources
+
 
 async def collect_update_materials(provider):
     request = UpdateSourceRequest("requests", "2.31.0", "2.32.3")
-    return await UpdateSourceService(provider).collect(request)
+    return await collect_sources(request, provider=provider)
 ```
 
 `provider` — существующий PyPiProvider; клиент создаётся и закрывается вызывающим

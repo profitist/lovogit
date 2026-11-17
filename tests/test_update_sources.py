@@ -1,6 +1,7 @@
 import asyncio
 import unittest
 from dataclasses import replace
+from functools import partial
 from unittest.mock import call, create_autospec
 
 from lovogit.app.providers.pypi import PyPiProvider
@@ -11,8 +12,8 @@ from lovogit.app.providers.pypi_errors import (
     PyPiRateLimited,
     PyPiUnavailable,
 )
-from lovogit.app.services.update_source_dto import UpdateSourceRequest
-from lovogit.app.services.update_sources import UpdateSourceService
+from lovogit.app.update_sources.collection import collect_sources
+from lovogit.app.update_sources.dto import UpdateSourceRequest
 
 
 def release(version="1.0", **changes):
@@ -43,14 +44,14 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
         self.current = release()
         self.target = release("2.0")
         self.provider.get_package_info.side_effect = [self.current, self.target]
-        self.service = UpdateSourceService(self.provider)
+        self.collect = partial(collect_sources, provider=self.provider)
         self.request = UpdateSourceRequest("Example.Pkg", "1.0", "2.0")
 
     async def test_collects_exact_versions_and_preserves_requested_and_returned_identity(
         self,
     ):
         self.request = replace(self.request, current_version="1", target_version="2")
-        result = await self.service.collect(self.request)
+        result = await self.collect(self.request)
         self.assertEqual(result.request, self.request)
         self.assertEqual(result.current.origin.role, "current")
         self.assertEqual(result.target.origin.role, "target")
@@ -63,15 +64,12 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.target.metadata, self.target)
         self.assertEqual(
             self.provider.get_package_info.await_args_list,
-            [
-                call("Example.Pkg", "1"),
-                call("Example.Pkg", "2"),
-            ],
+            [call("Example.Pkg", "1"), call("Example.Pkg", "2")],
         )
         self.provider.get_package.assert_not_called()
 
     async def test_identical_versions_keep_both_roles_with_one_request(self):
-        result = await self.service.collect(replace(self.request, target_version="1.0"))
+        result = await self.collect(replace(self.request, target_version="1.0"))
         self.assertEqual(result.current.metadata, result.target.metadata)
         self.assertEqual(result.current.origin.role, "current")
         self.assertEqual(result.target.origin.role, "target")
@@ -89,7 +87,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                     replace(self.current, description=text),
                     replace(self.target, description=text),
                 ]
-                result = await self.service.collect(self.request)
+                result = await self.collect(self.request)
                 for material, role, version in [
                     (result.current, "current", "1.0"),
                     (result.target, "target", "2.0"),
@@ -110,7 +108,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                     self.subTest(field=field, value=value),
                     self.assertRaisesRegex(ValueError, field),
                 ):
-                    await self.service.collect(replace(self.request, **{field: value}))
+                    await self.collect(replace(self.request, **{field: value}))
         self.provider.get_package_info.assert_not_called()
 
     async def test_provider_errors_propagate_without_retry_or_partial_result(self):
@@ -134,7 +132,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                         [error] if calls == 1 else [self.current, error]
                     )
                     with self.assertRaises(error_type) as caught:
-                        await self.service.collect(self.request)
+                        await self.collect(self.request)
                     self.assertIs(caught.exception, error)
                     self.assertEqual(caught.exception.version, version)
                     self.assertEqual(caught.exception.retry_after, "60")
@@ -149,7 +147,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                         [error] if calls == 1 else [self.current, error]
                     )
                     with self.assertRaises(type(error)) as caught:
-                        await self.service.collect(self.request)
+                        await self.collect(self.request)
                     self.assertIs(caught.exception, error)
                     self.assertEqual(self.provider.get_package_info.await_count, calls)
 
@@ -188,7 +186,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                 home_page="https://example.org/home",
             ),
         ]
-        result = await self.service.collect(self.request)
+        result = await self.collect(self.request)
         self.assertEqual(
             [(link.label, link.url) for link in result.current.links[:-1]],
             list(urls.items()),
@@ -210,7 +208,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
             replace(self.current, home_page="", project_urls={"Changelog": ""}),
             self.target,
         ]
-        result = await self.service.collect(self.request)
+        result = await self.collect(self.request)
         self.assertEqual(len(result.current.links), 1)
         self.assertEqual(result.current.links[0].url, "")
         self.assertEqual(result.target.links, ())
@@ -242,7 +240,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                     self.current,
                     replace(self.target, project_urls={"Changelog": url}),
                 ]
-                result = await self.service.collect(self.request)
+                result = await self.collect(self.request)
                 self.assertEqual(result.target.links[0].url, url)
                 self.assertEqual(result.target.links[0].exclusion_reason, reason)
                 self.assertEqual(result.target.has_change_links, reason is None)
@@ -265,7 +263,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                 if role == "target"
                 else self.target,
             ]
-            result = await self.service.collect(self.request)
+            result = await self.collect(self.request)
             self.assertTrue(result.has_change_links)
             self.assertTrue(getattr(result, role).has_change_links)
         for urls in (
@@ -279,7 +277,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                 self.current,
                 replace(self.target, project_urls=urls),
             ]
-            result = await self.service.collect(self.request)
+            result = await self.collect(self.request)
             self.assertFalse(result.has_change_links)
 
     async def test_requirement_diff_preserves_raw_metadata_and_does_not_resolve_markers(
@@ -291,7 +289,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
             replace(self.current, requires_python=">=3.10", requires_dist=before),
             replace(self.target, requires_python=">=3.11", requires_dist=after),
         ]
-        result = await self.service.collect(self.request)
+        result = await self.collect(self.request)
         diff = result.requirements_diff
         self.assertEqual(diff.current_requires_python, ">=3.10")
         self.assertEqual(diff.target_requires_python, ">=3.11")
@@ -312,7 +310,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
             replace(self.current, requires_dist=("b", "a", "a")),
             replace(self.target, requires_dist=("a", "b")),
         ]
-        result = await self.service.collect(self.request)
+        result = await self.collect(self.request)
         self.assertEqual(result.requirements_diff.added_requires_dist, ())
         self.assertEqual(result.requirements_diff.removed_requires_dist, ())
         self.assertFalse(result.requirements_diff.requires_python_changed)
@@ -326,7 +324,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                 replace(self.current, requires_python=before),
                 replace(self.target, requires_python=after),
             ]
-            result = await self.service.collect(self.request)
+            result = await self.collect(self.request)
             self.assertTrue(result.requirements_diff.requires_python_changed)
 
     async def test_dynamic_requirements_and_yanked_target_remain_release_facts(self):
@@ -345,7 +343,7 @@ class UpdateSourceTests(unittest.IsolatedAsyncioTestCase):
                             yanked_reason=reason,
                         ),
                     ]
-                    result = await self.service.collect(self.request)
+                    result = await self.collect(self.request)
                     self.assertEqual(
                         result.current.requires_dist_dynamic, role == "current"
                     )
@@ -399,12 +397,11 @@ class UpdateSourceIntegrationTests(unittest.IsolatedAsyncioTestCase):
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = UpdateSourceService(
-                PyPiProvider(client, PyPiSettings(_env_file=None))
+            collect = partial(
+                collect_sources,
+                provider=PyPiProvider(client, PyPiSettings(_env_file=None)),
             )
-            result = await service.collect(
-                UpdateSourceRequest("Example.Pkg", "1.0", "2.0")
-            )
+            result = await collect(UpdateSourceRequest("Example.Pkg", "1.0", "2.0"))
             self.assertFalse(client.is_closed)
         self.assertEqual(len(requests), 2)
         self.assertEqual(result.current.origin.package, "example-pkg")
@@ -425,27 +422,7 @@ class UpdateSourceIntegrationTests(unittest.IsolatedAsyncioTestCase):
         from pathlib import Path
 
         source = str(Path(__file__).resolve().parents[1] / "src")
-        script = """
-import asyncio
-import sys
-import httpx
-from lovogit.app.providers.pypi import PyPiProvider
-from lovogit.app.services.update_source_dto import UpdateSourceRequest
-from lovogit.app.services.update_sources import UpdateSourceService
-from lovogit.cfg.pypi import PyPiSettings
-
-async def main():
-    def handler(request):
-        return httpx.Response(200, json={"info": {"name": "example", "version": "1"}})
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        result = await UpdateSourceService(PyPiProvider(client, PyPiSettings(_env_file=None))).collect(UpdateSourceRequest("example", "1", "1"))
-        assert result.current.origin.role == "current"
-        assert result.target.origin.role == "target"
-    forbidden = ("lovogit.db", "lovogit.bot", "lovogit.agent", "lovogit.sandbox", "lovogit.cfg.settings", "langchain", "langgraph")
-    assert not any(name == prefix or name.startswith(prefix + ".") for name in sys.modules for prefix in forbidden)
-
-asyncio.run(main())
-"""
+        script = "import asyncio\nimport sys\nimport httpx\nfrom lovogit.app.providers.pypi import PyPiProvider\nfrom lovogit.app.update_sources.dto import UpdateSourceRequest\nfrom lovogit.app.update_sources.collection import collect_sources\nfrom lovogit.cfg.pypi import PyPiSettings\n\nasync def main():\n\n    def handler(request):\n        return httpx.Response(200, json={'info': {'name': 'example', 'version': '1'}})\n    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:\n        result = await collect_sources(UpdateSourceRequest('example', '1', '1'), provider=PyPiProvider(client, PyPiSettings(_env_file=None)))\n        assert result.current.origin.role == 'current'\n        assert result.target.origin.role == 'target'\n    forbidden = ('lovogit.db', 'lovogit.bot', 'lovogit.agent', 'lovogit.sandbox', 'lovogit.cfg.settings', 'langchain', 'langgraph')\n    assert not any((name == prefix or name.startswith(prefix + '.') for name in sys.modules for prefix in forbidden))\nasyncio.run(main())\n"
         process = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",

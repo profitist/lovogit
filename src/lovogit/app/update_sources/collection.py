@@ -4,7 +4,7 @@ from urllib.parse import urlsplit
 
 from lovogit.app.providers.pypi import PyPiProvider
 from lovogit.app.providers.pypi_dto import PackageInfoDTO
-from lovogit.app.services.update_source_dto import (
+from lovogit.app.update_sources.dto import (
     LinkCategory,
     ReleaseSourcesDTO,
     RequirementDifferenceDTO,
@@ -30,54 +30,44 @@ _LINK_CATEGORIES: dict[str, LinkCategory] = {
 }
 
 
-class UpdateSourceService:
-    """Collect publisher-supplied PyPI materials for two explicitly selected releases."""
-
-    def __init__(self, provider: PyPiProvider):
-        self._provider = provider
-
-    async def collect(self, request: UpdateSourceRequest) -> UpdateSourcesDTO:
-        for name in ("package", "current_version", "target_version"):
-            value = getattr(request, name)
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(
-                    f"Cannot collect update sources: {name} must be nonempty"
-                )
-        current = await self._provider.get_package_info(
-            request.package, request.current_version
-        )
-        target = (
-            current
-            if request.current_version == request.target_version
-            else await self._provider.get_package_info(
-                request.package, request.target_version
-            )
-        )
-        return UpdateSourcesDTO(
-            request=request,
-            current=_release_sources(
-                current,
-                SourceOriginDTO(
-                    "current", current.name, current.version, request.current_version
-                ),
+async def collect_sources(
+    request: UpdateSourceRequest, provider: PyPiProvider
+) -> UpdateSourcesDTO:
+    for name in ("package", "current_version", "target_version"):
+        value = getattr(request, name)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Cannot collect update sources: {name} must be nonempty")
+    current = await provider.get_package_info(request.package, request.current_version)
+    target = (
+        current
+        if request.current_version == request.target_version
+        else await provider.get_package_info(request.package, request.target_version)
+    )
+    return UpdateSourcesDTO(
+        request=request,
+        current=_release_sources(
+            current,
+            SourceOriginDTO(
+                "current", current.name, current.version, request.current_version
             ),
-            target=_release_sources(
-                target,
-                SourceOriginDTO(
-                    "target", target.name, target.version, request.target_version
-                ),
+        ),
+        target=_release_sources(
+            target,
+            SourceOriginDTO(
+                "target", target.name, target.version, request.target_version
             ),
-            requirements_diff=RequirementDifferenceDTO(
-                current_requires_python=current.requires_python,
-                target_requires_python=target.requires_python,
-                added_requires_dist=tuple(
-                    sorted(set(target.requires_dist) - set(current.requires_dist))
-                ),
-                removed_requires_dist=tuple(
-                    sorted(set(current.requires_dist) - set(target.requires_dist))
-                ),
+        ),
+        requirements_diff=RequirementDifferenceDTO(
+            current_requires_python=current.requires_python,
+            target_requires_python=target.requires_python,
+            added_requires_dist=tuple(
+                sorted(set(target.requires_dist) - set(current.requires_dist))
             ),
-        )
+            removed_requires_dist=tuple(
+                sorted(set(current.requires_dist) - set(target.requires_dist))
+            ),
+        ),
+    )
 
 
 def _release_sources(
@@ -89,7 +79,7 @@ def _release_sources(
             field="project_urls",
             label=label,
             url=url,
-            category=_LINK_CATEGORIES.get(re.sub(r"[ _-]", "", label.lower()), "other"),
+            category=_LINK_CATEGORIES.get(re.sub("[ _-]", "", label.lower()), "other"),
             exclusion_reason=_url_exclusion_reason(url),
         )
         for label, url in metadata.project_urls.items()

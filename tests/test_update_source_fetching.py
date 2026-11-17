@@ -15,10 +15,9 @@ from lovogit.app.providers.source_document_transport import (
     CheckedNetworkBackend,
     SourceDocumentTransport,
 )
-from lovogit.app.services.update_source_dto import UpdateSourceRequest
-from lovogit.app.services.update_source_fetch_dto import FetchedSourceDTO
-from lovogit.app.services.update_source_fetching import UpdateSourceFetchService
-from lovogit.app.services.update_sources import UpdateSourceService
+from lovogit.app.update_sources.collection import collect_sources
+from lovogit.app.update_sources.dto import FetchedSourceDTO, UpdateSourceRequest
+from lovogit.app.update_sources.fetching import fetch_sources
 from lovogit.cfg.pypi import PyPiSettings
 from lovogit.cfg.source_fetch import SourceFetchSettings
 
@@ -37,8 +36,8 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
                     release(project_urls={"Changelog": url}),
                     release("2.0", project_urls={"Changelog": "https://good.example/"}),
                 ]
-                sources = await UpdateSourceService(provider).collect(
-                    UpdateSourceRequest("example", "1.0", "2.0")
+                sources = await collect_sources(
+                    UpdateSourceRequest("example", "1.0", "2.0"), provider=provider
                 )
 
                 def handler(request):
@@ -62,7 +61,7 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
                 loader = SourceDocumentLoader(
                     SourceFetchSettings(_env_file=None), httpx.MockTransport(handler)
                 )
-                result = await UpdateSourceFetchService(loader).fetch(sources)
+                result = await fetch_sources(sources, loader=loader)
                 self.assertEqual(result.results[0].reason, reason)
                 self.assertEqual(result.results[0].status, "failed")
                 self.assertEqual(result.results[1].status, "fetched")
@@ -114,13 +113,16 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
             transport=httpx.MockTransport(pypi_handler)
         ) as client:
             provider = PyPiProvider(client, PyPiSettings(_env_file=None))
-            sources = await UpdateSourceService(provider).collect(
-                UpdateSourceRequest("Example.Pkg", "1.0", "2.0")
+            sources = await collect_sources(
+                UpdateSourceRequest("Example.Pkg", "1.0", "2.0"), provider=provider
             )
             backend.connect_tcp.assert_not_awaited()
-            result = await UpdateSourceFetchService(
-                SourceDocumentLoader(SourceFetchSettings(_env_file=None), transport)
-            ).fetch(sources)
+            result = await fetch_sources(
+                sources,
+                loader=SourceDocumentLoader(
+                    SourceFetchSettings(_env_file=None), transport
+                ),
+            )
         self.assertEqual(
             requests, ["/pypi/example-pkg/1.0/json", "/pypi/example-pkg/2.0/json"]
         )
@@ -138,29 +140,31 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
             release(project_urls={"Changelog": "https://one.example/"}),
             release("2.0", project_urls={"Release Notes": "https://two.example/"}),
         ]
-        sources = await UpdateSourceService(provider).collect(
-            UpdateSourceRequest("example", "1.0", "2.0")
+        sources = await collect_sources(
+            UpdateSourceRequest("example", "1.0", "2.0"), provider=provider
         )
         loader = AsyncMock()
         loader.fetch.side_effect = [
             FetchedSourceDTO((), "failed", "http_error"),
             FetchedSourceDTO((), "fetched", text="changes"),
         ]
-        result = await UpdateSourceFetchService(loader).fetch(sources)
+        result = await fetch_sources(sources, loader=loader)
         self.assertEqual(
             [item.status for item in result.results], ["failed", "fetched"]
         )
         loader = AsyncMock()
         loader.fetch.return_value = FetchedSourceDTO((), "failed", "http_error")
-        result = await UpdateSourceFetchService(loader).fetch(sources)
+        result = await fetch_sources(sources, loader=loader)
         self.assertEqual([item.status for item in result.results], ["failed", "failed"])
         loader = AsyncMock()
         loader.fetch.return_value = FetchedSourceDTO(
             (), "failed", "http_error", status_code=429
         )
-        result = await UpdateSourceFetchService(
-            loader, SourceFetchSettings(_env_file=None, SOURCE_FETCH_MAX_SOURCES=1)
-        ).fetch(sources)
+        result = await fetch_sources(
+            sources,
+            loader=loader,
+            settings=SourceFetchSettings(_env_file=None, SOURCE_FETCH_MAX_SOURCES=1),
+        )
         self.assertEqual(
             [item.reason for item in result.results], ["http_error", "source_limit"]
         )
@@ -171,17 +175,18 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
 
         loader = AsyncMock()
         loader.fetch.side_effect = slow
-        result = await UpdateSourceFetchService(
-            loader, SourceFetchSettings(_env_file=None, SOURCE_FETCH_DEADLINE=0.01)
-        ).fetch(sources)
+        result = await fetch_sources(
+            sources,
+            loader=loader,
+            settings=SourceFetchSettings(_env_file=None, SOURCE_FETCH_DEADLINE=0.01),
+        )
         self.assertEqual(
             [item.reason for item in result.results], ["timeout", "deadline_exceeded"]
         )
         loader.aclose.assert_awaited_once()
-
         loader = AsyncMock()
         loader.fetch.side_effect = slow
-        task = asyncio.create_task(UpdateSourceFetchService(loader).fetch(sources))
+        task = asyncio.create_task(fetch_sources(sources, loader=loader))
         await asyncio.sleep(0.001)
         task.cancel()
         with self.assertRaises(asyncio.CancelledError):
@@ -200,14 +205,14 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
                 },
             ),
         ]
-        sources = await UpdateSourceService(provider).collect(
-            UpdateSourceRequest("example", "1.0", "2.0")
+        sources = await collect_sources(
+            UpdateSourceRequest("example", "1.0", "2.0"), provider=provider
         )
         loader = AsyncMock()
         loader.fetch.return_value = FetchedSourceDTO(
             links=(), status="fetched", final_url="https://example.org/final", text="ok"
         )
-        result = await UpdateSourceFetchService(loader).fetch(sources)
+        result = await fetch_sources(sources, loader=loader)
         self.assertTrue(result.has_candidates)
         self.assertEqual(loader.fetch.await_count, 2)
         self.assertEqual(
@@ -228,11 +233,11 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
             release(project_urls={"Documentation": "https://example.org/docs"}),
             release("2.0", project_urls={"Changelog": "/relative"}),
         ]
-        sources = await UpdateSourceService(provider).collect(
-            UpdateSourceRequest("example", "1.0", "2.0")
+        sources = await collect_sources(
+            UpdateSourceRequest("example", "1.0", "2.0"), provider=provider
         )
         loader = AsyncMock()
-        result = await UpdateSourceFetchService(loader).fetch(sources)
+        result = await fetch_sources(sources, loader=loader)
         self.assertIs(result.sources, sources)
         self.assertFalse(result.has_candidates)
         self.assertEqual([item.status for item in result.results], ["skipped"] * 2)
@@ -246,11 +251,11 @@ class UpdateSourceFetchTests(unittest.IsolatedAsyncioTestCase):
     async def test_no_links_has_no_candidates(self):
         provider = AsyncMock()
         provider.get_package_info.side_effect = [release(), release("2.0")]
-        sources = await UpdateSourceService(provider).collect(
-            UpdateSourceRequest("example", "1.0", "2.0")
+        sources = await collect_sources(
+            UpdateSourceRequest("example", "1.0", "2.0"), provider=provider
         )
         loader = AsyncMock()
-        result = await UpdateSourceFetchService(loader).fetch(sources)
+        result = await fetch_sources(sources, loader=loader)
         self.assertIs(result.sources, sources)
         self.assertFalse(result.has_candidates)
         self.assertEqual(result.results, ())

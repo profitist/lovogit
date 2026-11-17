@@ -2,6 +2,7 @@ import asyncio
 import json
 import unittest
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -15,13 +16,14 @@ from test_update_sources import release
 from lovogit.agent.update_sources.extractor import UpdateChangeExtractor
 from lovogit.app.providers.pypi import PyPiProvider
 from lovogit.app.providers.source_document import SourceDocumentLoader
-from lovogit.app.services.update_source_analysis import UpdateSourceAnalysisService
-from lovogit.app.services.update_source_dto import SourceLinkDTO, UpdateSourceRequest
-from lovogit.app.services.update_source_fetch_dto import (
+from lovogit.app.update_sources.analysis import analyze_sources
+from lovogit.app.update_sources.collection import collect_sources
+from lovogit.app.update_sources.dto import (
     FetchedSourceDTO,
+    SourceLinkDTO,
     UpdateSourceFetchResultDTO,
+    UpdateSourceRequest,
 )
-from lovogit.app.services.update_sources import UpdateSourceService
 from lovogit.cfg.pypi import PyPiSettings
 from lovogit.cfg.source_analysis import SourceAnalysisSettings
 from lovogit.cfg.source_fetch import SourceFetchSettings
@@ -30,8 +32,8 @@ from lovogit.cfg.source_fetch import SourceFetchSettings
 async def fetched_sources(*documents, current="1.0", target="2.0"):
     provider = AsyncMock()
     provider.get_package_info.side_effect = [release(current), release(target)]
-    sources = await UpdateSourceService(provider).collect(
-        UpdateSourceRequest("Example.Pkg", current, target)
+    sources = await collect_sources(
+        UpdateSourceRequest("Example.Pkg", current, target), provider=provider
     )
     return UpdateSourceFetchResultDTO(sources, bool(documents), tuple(documents))
 
@@ -55,9 +57,9 @@ async def analyze_records(records, text="1.1 remove old", **settings):
         content=json.dumps({"changes": records, "limitations": []})
     )
     settings = SourceAnalysisSettings(_env_file=None, **settings)
-    return await UpdateSourceAnalysisService(
-        UpdateChangeExtractor(model, settings), settings
-    ).analyze(fetched)
+    return await analyze_sources(
+        fetched, extractor=UpdateChangeExtractor(model, settings), settings=settings
+    )
 
 
 class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
@@ -123,28 +125,32 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
             _env_file=None, SOURCE_ANALYSIS_MAX_DOCUMENT_CHARS=1
         )
         model = AsyncMock()
-        result = await UpdateSourceAnalysisService(
-            UpdateChangeExtractor(model, settings), settings
-        ).analyze(await fetched_sources(FetchedSourceDTO((), "fetched", text="long")))
+        result = await analyze_sources(
+            await fetched_sources(FetchedSourceDTO((), "fetched", text="long")),
+            extractor=UpdateChangeExtractor(model, settings),
+            settings=settings,
+        )
         self.assertEqual(result.status, "partial")
         model.ainvoke.assert_not_awaited()
         settings = SourceAnalysisSettings(_env_file=None)
         model.ainvoke.side_effect = RuntimeError("provider")
-        result = await UpdateSourceAnalysisService(
-            UpdateChangeExtractor(model, settings), settings
-        ).analyze(await fetched_sources(FetchedSourceDTO((), "fetched", text="long")))
+        result = await analyze_sources(
+            await fetched_sources(FetchedSourceDTO((), "fetched", text="long")),
+            extractor=UpdateChangeExtractor(model, settings),
+            settings=settings,
+        )
         self.assertEqual(result.status, "failed")
         model.ainvoke.side_effect = None
         model.ainvoke.return_value = AIMessage(
             content='{"changes": [], "limitations": []}'
         )
-        result = await UpdateSourceAnalysisService(
-            UpdateChangeExtractor(model, settings), settings
-        ).analyze(
+        result = await analyze_sources(
             await fetched_sources(
                 FetchedSourceDTO((), "fetched", text="text"),
                 FetchedSourceDTO((), "failed", "http_error"),
-            )
+            ),
+            extractor=UpdateChangeExtractor(model, settings),
+            settings=settings,
         )
         self.assertEqual(result.status, "partial")
         self.assertEqual(result.coverage, "undetermined")
@@ -196,9 +202,9 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
             ),
         ]
         settings = SourceAnalysisSettings(_env_file=None)
-        result = await UpdateSourceAnalysisService(
-            UpdateChangeExtractor(model, settings), settings
-        ).analyze(fetched)
+        result = await analyze_sources(
+            fetched, extractor=UpdateChangeExtractor(model, settings), settings=settings
+        )
         self.assertEqual(len(result.changes), 2)
         self.assertEqual(
             [item.evidence[0].final_url for item in result.changes],
@@ -299,9 +305,11 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
             model.ainvoke.return_value = AIMessage(
                 content='{"changes": [], "limitations": []}'
             )
-            result = await UpdateSourceAnalysisService(
-                UpdateChangeExtractor(model, settings), settings
-            ).analyze(await fetched_sources(*documents))
+            result = await analyze_sources(
+                await fetched_sources(*documents),
+                extractor=UpdateChangeExtractor(model, settings),
+                settings=settings,
+            )
             self.assertEqual([item.reason for item in result.documents], reasons)
             self.assertEqual(model.ainvoke.await_count, 1)
             self.assertEqual(result.status, "partial")
@@ -312,13 +320,16 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
             AIMessage(content='{"changes": [], "limitations": []}'),
             RuntimeError("provider failed"),
         ]
-        result = await UpdateSourceAnalysisService(
-            UpdateChangeExtractor(model, settings), settings
-        ).analyze(await fetched_sources(*documents))
+        result = await analyze_sources(
+            await fetched_sources(*documents),
+            extractor=UpdateChangeExtractor(model, settings),
+            settings=settings,
+        )
         self.assertEqual(result.status, "partial")
         self.assertEqual(result.documents[1].reason, "model_error")
 
     async def test_deadline_and_external_cancellation(self):
+
         async def slow(messages):
             await asyncio.sleep(60)
 
@@ -329,19 +340,23 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
         settings = SourceAnalysisSettings(_env_file=None, SOURCE_ANALYSIS_DEADLINE=0.01)
         model = AsyncMock()
         model.ainvoke.side_effect = slow
-        service = UpdateSourceAnalysisService(
-            UpdateChangeExtractor(model, settings), settings
+        analyze = partial(
+            analyze_sources,
+            extractor=UpdateChangeExtractor(model, settings),
+            settings=settings,
         )
-        result = await service.analyze(fetched)
+        result = await analyze(fetched)
         self.assertEqual(
             [item.reason for item in result.documents], ["timeout", "deadline_exceeded"]
         )
         model = AsyncMock()
         model.ainvoke.side_effect = slow
-        service = UpdateSourceAnalysisService(
-            UpdateChangeExtractor(model, settings), settings
+        analyze = partial(
+            analyze_sources,
+            extractor=UpdateChangeExtractor(model, settings),
+            settings=settings,
         )
-        task = asyncio.create_task(service.analyze(fetched))
+        task = asyncio.create_task(analyze(fetched))
         await asyncio.sleep(0.001)
         task.cancel()
         with self.assertRaises(asyncio.CancelledError):
@@ -366,14 +381,14 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
         ):
             with self.subTest(current=current, target=target):
                 fetched = await fetched_sources(current=current, target=target)
-                result = await UpdateSourceAnalysisService(AsyncMock()).analyze(fetched)
+                result = await analyze_sources(fetched, extractor=AsyncMock())
                 self.assertEqual(result.status, "no_materials")
         for current, target in (("1.0", "1.0.0"), ("2", "1"), ("legacy", "2")):
             with self.subTest(current=current, target=target):
                 fetched = await fetched_sources(current=current, target=target)
                 extractor = AsyncMock()
                 with self.assertRaises(ValueError):
-                    await UpdateSourceAnalysisService(extractor).analyze(fetched)
+                    await analyze_sources(fetched, extractor=extractor)
                 extractor.extract.assert_not_awaited()
 
     async def test_release_identity_mismatch(self):
@@ -390,7 +405,7 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
                 ),
             )
             with self.assertRaises(ValueError):
-                await UpdateSourceAnalysisService(AsyncMock()).analyze(invalid)
+                await analyze_sources(invalid, extractor=AsyncMock())
 
     async def test_unavailable_documents_do_not_call_model(self):
         fetched = await fetched_sources(
@@ -413,7 +428,7 @@ class UpdateSourceAnalysisTests(unittest.IsolatedAsyncioTestCase):
             fetched,
             results=(replace(fetched.results[0], links=links), *fetched.results[1:]),
         )
-        result = await UpdateSourceAnalysisService(extractor).analyze(fetched)
+        result = await analyze_sources(fetched, extractor=extractor)
         self.assertIs(result.fetched, fetched)
         self.assertEqual(result.status, "no_materials")
         self.assertEqual(result.fetched.results[0].links, links)

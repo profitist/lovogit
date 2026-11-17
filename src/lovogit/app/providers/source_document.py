@@ -10,7 +10,7 @@ from lovogit.app.providers.source_document_transport import (
     BlockedDestination,
     SourceDocumentTransport,
 )
-from lovogit.app.services.update_source_fetch_dto import FetchedSourceDTO
+from lovogit.app.update_sources.dto import FetchedSourceDTO
 from lovogit.cfg.source_fetch import SourceFetchSettings
 
 
