@@ -131,6 +131,27 @@ markers и optional-области. Порядок строк и написан�
 
 ## Вызов на готовом снимке
 
+Выбор целевой версии вынесен из статического парсера в отдельную операцию
+`lovogit.app.update_selection.select_latest_stable_update(dependency, provider)`.
+Она принимает одну декларацию DTO и использует переданный PyPiProvider.
+Парсер по-прежнему не делает сетевых запросов.
+
+| Результат выбора | Значение |
+| --- | --- |
+| `selected` | Найден последний стабильный неотозванный target выше current; есть request и target_metadata |
+| `no_update` | Нет подходящего релиза выше current; request и target_metadata отсутствуют |
+| `skipped` | Current неизвестен, конфликтует, некорректен или источник не поддержан; запросов к PyPI нет |
+
+Результат сохраняет исходную декларацию, policy=`latest_stable`, reason,
+checked_versions и excluded_versions. Current берётся только из declared_pin
+или locked registry-декларации. Scope, markers, extras и provenance сохраняются;
+разные условные записи одного пакета остаются разными входами.
+
+Например, `<2` при известной текущей `1.5` не мешает выбрать стабильную `3.0`.
+Не фильтруем target по constraints или Python; Marker.evaluate не вызывается.
+Выбор не означает совместимость. Ошибки PyPI передаются вызывающему отдельно
+от no_update; у skipped/no_update анализ changelog не запускается.
+
 ```python
 import asyncio
 
@@ -154,4 +175,39 @@ async def inspect_project(repo_service, github_url):
 
 ```sh
 PYTHONPATH=src:tests .venv/bin/python -m unittest test_dependency_inventory test_dependency_files test_dependency_parsing test_dependency_versions test_dependency_lock test_dependency_snapshot
+```
+
+## От инвентаря к материалам обновления
+
+Вызывающий явно запускает выбор и сбор. Пример получает уже готовый инвентарь
+и provider с клиентом, которым владеет вызывающий:
+
+```python
+from lovogit.app.update_selection import select_latest_stable_update
+from lovogit.app.update_sources.collection import collect_sources
+
+
+async def select_and_collect(inventory, provider):
+    decisions = []
+    materials = []
+    for declaration in inventory.dependencies:
+        decision = await select_latest_stable_update(declaration, provider)
+        decisions.append(decision)
+        if decision.status == "selected":
+            materials.append(await collect_sources(decision.request, provider))
+    return tuple(decisions), tuple(materials)
+```
+
+Skipped/no_update остаются в decisions без вызова collect_sources. Исключения
+PyPI и бюджета передаются вызывающему; пример не подавляет их и не определяет
+политику целого batch. Разные декларации одного имени обрабатываются отдельно,
+без общего cache. Полноту исходного инвентаря (`inventory.status`) нужно
+показывать отдельно: наличие решений по разобранным записям не означает полное
+покрытие проекта. Сбор возвращает материалы, но не скачивает страницы и
+не запускает LLM. Файлы, инвентарь и БД не меняются.
+
+Проверка выбора и документированного пути без сети и модели:
+
+```sh
+PYTHONPATH=src:tests .venv/bin/python -m unittest discover -s tests -p 'test_update_selection*.py'
 ```

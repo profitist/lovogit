@@ -100,6 +100,42 @@ Documentation и другие. Поиск и чтение changelog — отде
 PYTHONPATH=src:tests .venv/bin/python -m unittest test_pypi_provider
 ```
 
+## Выбор последнего стабильного target
+
+`select_latest_stable_update(dependency, provider)` из
+`lovogit.app.update_selection` принимает одну декларацию инвентаря с известным
+registry current (declared_pin/locked). Правило MVP — максимальный стабильный
+PEP 440 релиз строго новее current. Post-релизы допускаются; prerelease, dev,
+local и некорректные версии исключаются. Эквивалентные строки дедуплицируются
+до запросов, порядок индекса не влияет на выбор.
+
+Селектор читает один индекс и проверяет metadata явных кандидатов по убыванию
+через `get_package_info(package, version)`. Yanked исключается даже без текста
+причины. Требования Python, диапазон/constraints проекта, платформа, extras и
+markers не ограничивают target. Metadata и исходная декларация сохраняются
+для анализа; установимость и совместимость не проверяются.
+
+Результат: selected с request и target_metadata; no_update, если подходящих
+более новых версий нет; skipped без сети при непригодном current. Нормальные
+результаты хранят policy, reason, checked_versions и excluded_versions.
+Один и тот же current сохраняет исходную строку, а имя запроса нормализуется.
+
+Клиент принадлежит вызывающему. По умолчанию лимит — 32 проверки metadata
+и общий timeout 120 секунд с учётом индекса; аргументы `max_release_checks`
+и `timeout` позволяют его изменить. При оставшихся непроверенных кандидатах
+лимит даёт `UpdateSelectionError` с package, reason=`release_check_limit`
+и checked_versions. Общий deadline даёт reason=`deadline_exceeded`.
+Завершение проверки последнего кандидата в пределах лимита допускает no_update.
+
+Ошибки провайдера (PackageNotFound, PyPiRateLimited с retry_after,
+PyPiUnavailable, InvalidPyPiResponse) передаются отдельно от результата выбора.
+Несовпадение имени или версии metadata тоже даёт InvalidPyPiResponse.
+После ошибки нет retry или скрытого перехода к более старому кандидату;
+внешняя отмена передаётся вызывающему. Skipped/no_update не содержат request
+и не запускают сбор. Выбранную пару можно явно передать в `collect_sources`;
+сам сбор по-прежнему не выбирает версии. Пример всей цепочки —
+в [документации инвентаря](dependencies.md#от-инвентаря-к-материалам-обновления).
+
 ## Анализ загруженных материалов
 
 Конвейер находится в пакете `lovogit.app.update_sources`. Это функции с явно
