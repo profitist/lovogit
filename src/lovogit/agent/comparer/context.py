@@ -17,8 +17,18 @@ async def collect_context(
     toolkit: Toolkit,
     config: RunnableConfig | None = None,
     timeout: float = 120,
+    executor=None,
+    model_call_limit: int | None = None,
+    tool_call_limit: int | None = None,
 ):
-    agent = create_investigation_agent(model, toolkit, stage="compare")
+    agent = create_investigation_agent(
+        model,
+        toolkit,
+        stage="compare",
+        executor=executor,
+        model_call_limit=model_call_limit,
+        tool_call_limit=tool_call_limit,
+    )
     document = {
         "repository_id": state["repository_id"],
         "repository_sha": state["repository_sha"],
